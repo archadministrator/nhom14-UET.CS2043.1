@@ -76,3 +76,24 @@ class MacFactory implements UIFactory {
         return new MacCheckbox();
     }
 }
+
+
+// Ubuntu factory
+class UbuntuButton implements Button {
+    public void render(){
+        System.out.println("Rendered ubuntu button");
+    }
+}
+class UbuntuCheckbox implements Checkbox {
+    public void render(){
+        System.out.println("Rendered ubuntu checkbox");
+    }
+}
+class UbuntuFactory implements UIFactory {
+    public Button createButton(){
+        return new UbuntuButton();
+    }
+    public Checkbox createCheckbox(){
+        return new UbuntuCheckbox();
+    }
+}

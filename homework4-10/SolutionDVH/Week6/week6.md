@@ -86,6 +86,7 @@ Không được sửa lớp cũ.
 
 Hệ thống cần tạo bản sao của một đối tượng cấu hình để chỉnh sửa mà không làm thay đổi bản gốc.
 
+
 Bài tập về Mẫu thiết kế (tiếp)
 Bài 1: Quản lý hệ thống file đơn giản
 Xây dựng công cụ quản lý hệ thống file với ba loại phần tử: FileItem, Shortcut, Folder.
