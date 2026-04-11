@@ -1,10 +1,9 @@
 package com.auction.model;
 
 
+import com.auction.model.enums.Role;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
-import com.auction.model.enums.Role;
 
 public class User {
     private long id;
@@ -13,7 +12,7 @@ public class User {
     private String email;
     private Role role;
     private BigDecimal balance;
-    private LocalDateTime createdAt;
+    private final LocalDateTime createdAt;
     private boolean isActive;
 
     public User(){
@@ -38,7 +37,7 @@ public class User {
     public String getUsername(){return username;}
     public String getPassword(){return password;}
     public String getEmail(){return email;}
-    public String getRole(){return role;}
+    public Role getRole(){return role;}
     public BigDecimal getBalance(){return balance;}
     public LocalDateTime getCreatedAt(){return createdAt;}
     public boolean isActive(){return isActive;}
