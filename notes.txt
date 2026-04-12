@@ -1,0 +1,99 @@
+OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đấu giá bằng web app. Vì tất cả đều là newbie, chúng ta sẽ xem xét dự án dưới góc nhìn đơn giản nhất
+
+1. Tổng quan
+    Auction System là một hệ thống đấu giá trực tuyến
+    Đi theo hướng Auction Real-time - Đấu giá thời gian thực
+
+2. Mô hình 
+    a. Đối tượng
+        Đối tượng của web app này gồm 2 nhóm chính: Bidder (người đấu giá) và Seller (người bán sản phẩm đấu giá)
+    b. Hành vi riêng của đối tượng
+        - Bidder: 
+            + Xem sản phẩm
+            + Đặt giá 
+            + Theo dõi kết quả
+            ...
+        - Seller:
+            + Đăng sản phẩm
+            + Đặt giá khởi điểm
+            + Set thời gian kết thúc đấu giá 
+            ...
+    c. Hành vi chung của User
+        Tất cả Bidder và Seller đều là User với các hành vi: 
+            + Đăng ký, đăng nhập
+            + Thao tác với GUI 
+            + Tham gia phiên đấu giá
+            ...
+
+3. Những việc cần làm
+    a. Xây dựng các chức năng cơ bản của một Auction Web App
+        + Quản lý người dùng: User là Bidder, Seller hay Admin?
+        + Quản lý sản phẩm được đấu giá: 
+            - Thêm, sửa, xoá sản phẩm
+            - Các thông tin của sản phẩm:
+                - Tên, mô tả, giá khởi điểm
+                - Giá hiện tại
+                - Thời gian bắt đầu, kết thúc phiên đấu sản phẩm này
+        + Tham gia đấu giá:
+            - Mô hình đấu giá cổ điển: đặt giá, người khác đặt cao hơn, đặt tiếp ... 
+            - Kiểm tra tính logic của các phép đặt (giá không được thấp hơn hoặc bằng giá hiện tại và không được cao hơn số dư tài khoản của mình ...)
+            - Cập nhật người dẫn đầu, giá cao nhất, ..
+        + Kết thúc đấu giá: 
+            - Chốt giá cuối cùng
+            - Xác định người thắng
+        + Giao diện - GUI
+            - Sử dụng JavaFX (tích hợp CSS là đẹp nhất)
+            - Khung giao diện 
+                - Trang chủ: gồm logo app, login, tìm kiếm sản phẩm, danh sách sản phẩm đấu giá ở mức preview ...
+                - Danh sách sản phẩm: thông tin chi tiết về sản phẩm, phiên đấu giá, ...
+                - Chi tiết sản phẩm - màn hình đấu giá (phiên đấu giá): mọi thông tin về sản phẩm cũng như trạng thái đấu giá
+                - Một số frame riêng: trang "Quản lý sản phẩm" cho Seller, 
+            - Dark Mode, tối ưu tốc độ load frontend ...
+        + Các chức năng khác: sẽ phát triển và cập nhật thêm
+    b. Hệ thống hoá
+        Cần quản lý hệ thống một cách chuyên nghiệp. Dưới đây là cấu trúc ví dụ của một auction system đơn giản
+
+            ├───client
+            │   └───src
+            │       └───main
+            │           ├───java
+            │           │   └───com
+            │           │       └───auction
+            │           │           └───client
+            │           │               ├───controller
+            │           │               ├───model
+            │           │               ├───service
+            │           │               └───util
+            │           └───resources
+            │               ├───css
+            │               └───fxml
+            └───server
+                └───src
+                    └───main
+                        ├───java
+                        │   └───com
+                        │       └───auction
+                        │           ├───config
+                        │           ├───controller
+                        │           ├───dao
+                        │           ├───exception
+                        │           ├───model
+                        │           │   └───enums
+                        │           ├───scheduler
+                        │           ├───service
+                        │           └───util
+                        ├───resources
+                        └───sql
+    c. Tối ưu hoá
+        Sau này, cần phát triển thêm về bảo mật, anti-cheat, tối ưu real-time fairness, code clean ...
+4. Các kỹ năng cần học
+
+
+            
+
+            
+    
+
+
+    
+        

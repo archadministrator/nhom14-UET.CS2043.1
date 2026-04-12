@@ -3,7 +3,7 @@ import java.util.Scanner;
 public class Bai3 {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Choose configuration - mac/win?: ");
+        System.out.println("Choose configuration - mac/win/ubuntu?: ");
         String type = scanner.nextLine();
 
         UIFactory factory = null;
@@ -11,6 +11,8 @@ public class Bai3 {
             factory = new WindowsFactory();
         } else if (type.equals("mac")){
             factory = new MacFactory();
+        } else if (type.equals("ubuntu")){
+            factory = new UbuntuFactory();
         } else {
             System.out.println("Invalid input");
         }

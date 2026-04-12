@@ -2,7 +2,7 @@ public class Bai1 {
     public static void main(String[] args) {
         Runnable task = () -> {
             AppConfig config = AppConfig.getInstance();
-            System.out.println(Thread.currentThread().getName() + " - " + config.hashCode());
+            System.out.println(Thread.currentThread().getName() + ": " + config.hashCode());
         };
 
         Thread t1 = new Thread(task, "Thread 1");
@@ -27,8 +27,9 @@ class AppConfig {
         this.logLevel = "CEBR";
     }
 
+    // Singleton core
     public static AppConfig getInstance(){
-        if (instance == null) { // Check trong
+        if (instance == null) { 
             synchronized (AppConfig.class) {
                 if (instance == null) {
                     instance = new AppConfig();

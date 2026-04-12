@@ -55,6 +55,7 @@ class SorterAdapter implements Sorter {
     public SorterAdapter(LegacySorter legacySorter){
         this.legacySorter = legacySorter;
     }
+    //Core
     @Override 
     public int[] sort(int[] arr){
         return legacySorter.quickSort(arr);
