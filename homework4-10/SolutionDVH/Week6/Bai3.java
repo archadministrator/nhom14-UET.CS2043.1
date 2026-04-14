@@ -27,17 +27,18 @@ public class Bai3 {
 }
 
 
-
+// Abstract Product
 interface Button {void render();}
 interface Checkbox {void render();}
 
+// Abstract factory
 interface UIFactory{
     Button createButton();
     Checkbox createCheckbox();
 }
 
 
-// WINDOWS factory
+// WINDOWS factory - Concrete Product
 class WindowsButton implements Button {
     public void render(){
         System.out.println("Rendered Windows button");
@@ -49,6 +50,7 @@ class WindowsCheckbox implements Checkbox {
     }
 }
 
+// Concrete Factory
 class WindowsFactory implements UIFactory {
     public Button createButton(){
         return new WindowsButton();

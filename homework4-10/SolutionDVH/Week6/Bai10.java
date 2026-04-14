@@ -35,3 +35,4 @@ public class Bai10 {
         l1.logError("Something went wrong");
     }
 }
+

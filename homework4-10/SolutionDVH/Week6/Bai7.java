@@ -15,11 +15,12 @@ public class Bai7 {
 
 
 
-
+// Component
 interface Notifier {
     void send(String msg);
 }
 
+// Concrete Component
 class EmailNotifier implements Notifier {
     @Override 
     public void send(String msg){
@@ -27,6 +28,7 @@ class EmailNotifier implements Notifier {
     }
 }
 
+// Decorator
 abstract class NotifierDecorator implements Notifier {
     /////////////////////////
     protected Notifier wrappee;
@@ -42,7 +44,7 @@ abstract class NotifierDecorator implements Notifier {
     }
 }
 
-
+// Concrete Decorator
 class SMSNotifier extends NotifierDecorator {
     public SMSNotifier(Notifier notifier){
         super(notifier);

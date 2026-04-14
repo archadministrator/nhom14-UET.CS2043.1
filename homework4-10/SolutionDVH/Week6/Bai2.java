@@ -11,7 +11,7 @@ public class Bai2 {
 
 interface Notification {void send(String message);}
 
-//Creator
+// Creator
 abstract class NotificationApp {
     public void notifyUser(String message){
         Notification notification = createNotification();
@@ -22,7 +22,7 @@ abstract class NotificationApp {
 }
 
 
-//Concrete class
+//Concrete Product
 class EmailNotification implements Notification {
     @Override
     public void send(String message){
@@ -39,7 +39,7 @@ class SmsNotification implements Notification {
 
 
 
-// Product Class
+//Concrete Creator
 class EmailApp extends NotificationApp {
     @Override
     protected Notification createNotification(){

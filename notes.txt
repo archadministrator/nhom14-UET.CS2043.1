@@ -52,7 +52,6 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
         + Các chức năng khác: sẽ phát triển và cập nhật thêm
     b. Hệ thống hoá
         Cần quản lý hệ thống một cách chuyên nghiệp. Dưới đây là cấu trúc ví dụ của một auction system đơn giản
-
             ├───client
             │   └───src
             │       └───main
@@ -60,33 +59,100 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
             │           │   └───com
             │           │       └───auction
             │           │           └───client
+            │           │               │   MainApp.java
+            │           │               │   pom.xml
+            │           │               │
             │           │               ├───controller
+            │           │               │       AuctionDetailController.java
+            │           │               │       AuctionListController.java
+            │           │               │       LoginController.java
+            │           │               │       SellerDashboardController.java
+            │           │               │
             │           │               ├───model
+            │           │               │       ClientDto.java
+            │           │               │
             │           │               ├───service
+            │           │               │       ApiService.java
+            │           │               │       SessionManager.java
+            │           │               │       WebSocketService.java
+            │           │               │
             │           │               └───util
+            │           │                       FxUtil.java
+            │           │
             │           └───resources
             │               ├───css
+            │               │       main.css
+            │               │
             │               └───fxml
+            │                       auction-detail.fxml
+            │                       auction-list.fxml
+            │                       login.fxml
+            │                       seller-dashboard.fxml
+            │
             └───server
                 └───src
                     └───main
                         ├───java
                         │   └───com
                         │       └───auction
+                        │           │   AuctionServerApplication.java
+                        │           │
                         │           ├───config
+                        │           │       JwtAuthFilter.java
+                        │           │       SecurityConfig.java
+                        │           │       WebSocketConfig.java
+                        │           │
                         │           ├───controller
+                        │           │       AuctionController.java
+                        │           │       AuthController.java
+                        │           │       BidController.java
+                        │           │       UserController.java
+                        │           │
                         │           ├───dao
+                        │           │       AuctionItemRepository.java
+                        │           │       AutoBidConfigRepository.java
+                        │           │       BidRepository.java
+                        │           │       UserRepository.java
+                        │           │
                         │           ├───exception
+                        │           │       AuctionExceptions.java
+                        │           │       GlobalExceptionHandler.java
+                        │           │
                         │           ├───model
+                        │           │   │   AuctionItem.java
+                        │           │   │   AutoBidConfig.java
+                        │           │   │   Bid.java
+                        │           │   │   User.java
+                        │           │   │
                         │           │   └───enums
+                        │           │           AuctionStatus.java
+                        │           │           Role.java
+                        │           │
                         │           ├───scheduler
+                        │           │       AuctionScheduler.java
+                        │           │
                         │           ├───service
+                        │           │       AuctionService.java
+                        │           │       AutoBidService.java
+                        │           │       BidService.java
+                        │           │       UserService.java
+                        │           │
                         │           └───util
+                        │                   Dto.java
+                        │                   JwtUtil.java
+                        │
                         ├───resources
+                        │       application.properties
+                        │
                         └───sql
+                                schema.sql
+                                schemas.sql
+                                seed.sql
+        Cấu trúc này thoả mãn cả mô hình MVC và Maven, đảm bảo quá trình mở rộng về sau 
     c. Tối ưu hoá
         Sau này, cần phát triển thêm về bảo mật, anti-cheat, tối ưu real-time fairness, code clean ...
 4. Các kỹ năng cần học
+
 
 
             
