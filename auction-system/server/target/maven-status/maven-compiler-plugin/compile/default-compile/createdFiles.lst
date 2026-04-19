@@ -1,0 +1,16 @@
+com\example\auction\model\User.class
+com\example\auction\controller\AuctionController.class
+com\example\auction\controller\AuthController.class
+com\example\auction\dto\BidRequest.class
+com\example\auction\dto\LoginRequest.class
+com\example\auction\model\Auction.class
+com\example\auction\service\AuctionService.class
+com\example\auction\config\WebConfig.class
+com\example\auction\AuctionApplication.class
+com\example\auction\repository\AuctionRepository.class
+com\example\auction\repository\UserRepository.class
+com\example\auction\model\Bid.class
+com\example\auction\service\BidService.class
+com\example\auction\service\UserService.class
+com\example\auction\repository\BidRepository.class
+com\example\auction\controller\BidController.class

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="10" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.example.auctionfx.controller.MainController">
+    <Label text="Available Auctions" style="-fx-font-size: 16px;"/>
+    <TableView fx:id="auctionTable">
+        <columns>
+            <TableColumn text="ID" fx:id="idColumn"/>
+            <TableColumn text="Title" fx:id="titleColumn"/>
+            <TableColumn text="Current Price" fx:id="priceColumn"/>
+            <TableColumn text="End Time" fx:id="endTimeColumn"/>
+        </columns>
+    </TableView>
+    <Button text="View Details" onAction="#handleViewDetails"/>
+    <Button text="Refresh" onAction="#handleRefresh"/>
+</VBox>
