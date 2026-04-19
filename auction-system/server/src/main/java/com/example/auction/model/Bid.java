@@ -34,4 +34,3 @@ public class Bid {
     public void setAuction(Auction auction) { this.auction = auction; }
     public User getBidder() { return bidder; }
     public void setBidder(User bidder) { this.bidder = bidder; }
-}
