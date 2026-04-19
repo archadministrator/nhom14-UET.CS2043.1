@@ -1,0 +1,11 @@
+com\example\auctionfx\model\Auction.class
+com\example\auctionfx\service\ApiService$BidRequest.class
+com\example\auctionfx\service\ApiService$1.class
+com\example\auctionfx\controller\MainController.class
+com\example\auctionfx\service\ApiService$LoginRequest.class
+com\example\auctionfx\service\ApiService.class
+com\example\auctionfx\controller\LoginController.class
+com\example\auctionfx\model\Bid.class
+com\example\auctionfx\model\User.class
+com\example\auctionfx\AuctionFXApplication.class
+com\example\auctionfx\controller\AuctionDetailController.class
