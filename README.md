@@ -178,6 +178,14 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
             + Database
             + Realtime
         Để cả 4 người có phần công việc tương đương nhau, sẽ phân công công việc giàn trải theo cả 4 mảng cho mỗi người:
+        =====================================
+                A - Nguyễn Văn Mạnh
+                B - Đặng Gia Hưng
+                C - Dương Văn Huy 
+                D - Lê Công Nhật
+        =====================================
+
+
         A - Backend – Auction Core
         Quản lý phiên đấu giá (CRUD), lịch sử đấu giá, tìm kiếm và lọc
 
@@ -190,10 +198,9 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
         D - Backend – User và dịch vụ cơ bản
         Đăng ký, đăng nhập, phân quyền, ví cơ bản, đánh giá sản phẩm
 
-
         ------------------------------ ---------------------------------------------------------
 
-        a. Thành viên A – Backend Auction Core và Data API
+        a. A – Backend Auction Core và Data API
             1. Thiết kế database schema cho Auction, Bid, Category (nếu có)
             2. API CRUD Auction
                 Tạo auction mới (tiêu đề, mô tả, giá khởi điểm, thời gian kết thúc, ảnh)
@@ -214,7 +221,7 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
                 Spring MVC
                 JUnit, Mockito
 
-        b. Thành viên B – Backend Bidding Logic và Real-time
+        b. B – Backend Bidding Logic và Real-time
             1. Proxy bidding
                 Cho phép đặt giá tối đa
                 Tự động tăng giá theo bước
@@ -233,7 +240,7 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
                 Spring Scheduling
                 Java concurrency hoặc Redis
 
-        c. Thành viên C – Frontend JavaFX
+        c. C – Frontend JavaFX
             1. Màn hình đăng nhập và đăng ký
             2. Màn hình danh sách auction
                 TableView
@@ -256,7 +263,7 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
                 HttpClient hoặc OkHttp
                 WebSocket client
         
-        d.Thành viên D – Backend User và dịch vụ hỗ trợ
+        d. D – Backend User và dịch vụ hỗ trợ
             1. Xác thực và phân quyền
                 Đăng ký
                 Đăng nhập (JWT)
@@ -301,6 +308,12 @@ OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đ�
             |       |                                          | D                          | - Hệ thống đánh giá.<br>- API rating.<br>- Admin UI cơ bản.                                                                                               | JPA, Spring MVC                            | - Rating hoạt động.<br>- Admin UI.                                                   |
             | 7–8   | Sprint 4: Tích hợp, Kiểm thử & Hoàn thiện| Cả nhóm                    | - A: Tối ưu API, Swagger.<br>- B: Test tải, fix concurrency.<br>- C: UI/UX.<br>- D: Hoàn thiện admin.<br>- E2E test.<br>- README.                       | Toàn bộ stack                              | - App hoàn chỉnh.<br>- Swagger UI.<br>- Báo cáo dự án.                               |
 
+        =====================================
+                A - Nguyễn Văn Mạnh
+                B - Đặng Gia Hưng
+                C - Dương Văn Huy 
+                D - Lê Công Nhật
+        =====================================
 
         ---------------------------------------------------------------------
 
