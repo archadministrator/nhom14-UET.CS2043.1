@@ -10,8 +10,10 @@ D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\config\WebConfig.java
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\controller\BidController.java
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\model\Auction.java
+D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\enums\Role.java
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\repository\AuctionRepository.java
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\AuctionApplication.java
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\dto\BidRequest.java
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\dto\AuctionResponse.java
+D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\enums\AuctionStatus.java
 D:\code\basicLangs\javalearning\auction-system\server\src\main\java\com\example\auction\repository\BidRepository.java

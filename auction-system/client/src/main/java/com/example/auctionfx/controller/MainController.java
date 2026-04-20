@@ -1,14 +1,16 @@
 package com.example.auctionfx.controller;
 
+import java.time.format.DateTimeFormatter;
+
 import com.example.auctionfx.AuctionFXApplication;
 import com.example.auctionfx.model.Auction;
 import com.example.auctionfx.service.ApiService;
+
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
-import java.time.format.DateTimeFormatter;
 
 public class MainController {
     @FXML private TableView<Auction> auctionTable;

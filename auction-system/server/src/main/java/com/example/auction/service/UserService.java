@@ -14,6 +14,7 @@ public class UserService {
 
     @PostConstruct
     public void init() {
+        //Sample user
         if (userRepository.count() == 0) {
             User user = new User();
             user.setUsername("user");

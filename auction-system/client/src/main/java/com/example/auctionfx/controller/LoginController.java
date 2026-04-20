@@ -3,6 +3,7 @@ package com.example.auctionfx.controller;
 import com.example.auctionfx.AuctionFXApplication;
 import com.example.auctionfx.model.User;
 import com.example.auctionfx.service.ApiService;
+
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;

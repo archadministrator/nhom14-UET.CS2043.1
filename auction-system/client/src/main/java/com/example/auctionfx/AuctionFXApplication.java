@@ -2,6 +2,7 @@ package com.example.auctionfx;
 
 import com.example.auctionfx.controller.AuctionDetailController;
 import com.example.auctionfx.model.User;
+
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
