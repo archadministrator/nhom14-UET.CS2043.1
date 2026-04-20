@@ -18,8 +18,6 @@ public class AuctionService {
     @PostConstruct
     public void init() {
         if (auctionRepository.count() == 0) {
-
-            // Sample Database
             Auction auction = new Auction();
             auction.setTitle("Antique Vase");
             auction.setDescription("Beautiful 19th century vase");
