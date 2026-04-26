@@ -52,7 +52,7 @@ Xây dựng một hệ thống đấu giá trực tuyến thời gian thực v�
 ## 5. Phân công chi tiết (File-level Assignment)
 
 ### 1. Nguyễn Văn Mạnh (Backend Core - Auction Management)
-- **Model:** `Auction.java`, `Item.java`, `Category.java` (Base entities).
+- **Model:** `Auction.java`, `Item.java`, `Art.java`, `Electronics.java`, `Vehicle.java` (Inheritance structure).
 - **Repository:** `AuctionRepository.java` (Xử lý các query tìm kiếm, lọc theo status).
 - **Service:** `AuctionService.java` (Các hàm CRUD auction, quản lý vòng đời đấu giá).
 - **Controller:** `AuctionController.java` (API endpoint cho auction).
