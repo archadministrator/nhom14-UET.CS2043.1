@@ -1,80 +1,94 @@
 # KẾ HOẠCH PHÁT TRIỂN HỆ THỐNG ĐẤU GIÁ TRỰC TUYẾN (AUCTION SYSTEM)
 
 ## 1. Thông tin chung
-- **Tên dự án:** Online Auction System (Real-time)
-- **Nhóm thực hiện:** Nhóm 14 - UET.CS2043.1
-- **Thành viên:**
+
+* Tên dự án: Online Auction System (Real-time)
+* Nhóm thực hiện: Nhóm 14 - UET.CS2043.1
+* Thành viên:
+
   1. Nguyễn Văn Mạnh (Backend Auction Core)
   2. Đặng Gia Hưng (Backend Bidding & Real-time)
   3. Dương Văn Huy (Frontend JavaFX)
   4. Lê Công Nhật (Backend User & Support Services)
 
 ## 2. Mục tiêu dự án
+
 Xây dựng một hệ thống đấu giá trực tuyến thời gian thực với đầy đủ các chức năng cho người mua (Bidder) và người bán (Seller), đảm bảo tính công bằng, tốc độ và giao diện thân thiện.
 
 ## 3. Lộ trình thực hiện (Sprints)
 
 ### Sprint 1: Khởi tạo & Xác thực (Tuần 1-2)
-- **Mạnh:** Thiết kế database (Auction, Bid), viết API lấy danh sách và chi tiết sản phẩm.
-- **Hưng:** Nghiên cứu và thiết lập WebSocket (STOMP), xây dựng API đặt giá cơ bản.
-- **Huy:** Setup project JavaFX, thiết kế màn hình Login/Register, kết nối API Auth.
-- **Nhật:** Xây dựng hệ thống bảo mật (Spring Security + JWT), API đăng ký/đăng nhập.
-- **Đầu ra:** Hệ thống đăng nhập hoạt động, giao diện cơ bản, database khởi tạo.
+
+* Mạnh: Thiết kế database (Auction, Bid), viết API lấy danh sách và chi tiết sản phẩm.
+* Hưng: Nghiên cứu và thiết lập WebSocket (STOMP), xây dựng API đặt giá cơ bản.
+* Huy: Setup project JavaFX, thiết kế màn hình Login/Register, kết nối API Auth.
+* Nhật: Xây dựng hệ thống bảo mật (Spring Security + JWT), API đăng ký/đăng nhập.
+* Đầu ra: Hệ thống đăng nhập hoạt động, giao diện cơ bản, database khởi tạo.
 
 ### Sprint 2: Chức năng Đấu giá Cốt lõi (Tuần 3-4)
-- **Mạnh:** Hoàn thiện CRUD sản phẩm, chức năng tìm kiếm, lọc và phân trang.
-- **Hưng:** Logic Proxy Bidding (tự động nâng giá), xử lý tranh chấp (race condition).
-- **Huy:** Giao diện danh sách sản phẩm, cập nhật giá thời gian thực qua WebSocket.
-- **Nhật:** Quản lý Profile người dùng, nâng cấp tài khoản Seller, API nạp tiền.
-- **Đầu ra:** Người dùng có thể xem và đặt giá, giá cập nhật tức thời trên màn hình.
+
+* Mạnh: Hoàn thiện CRUD sản phẩm, chức năng tìm kiếm, lọc và phân trang.
+* Hưng: Logic Proxy Bidding (tự động nâng giá), xử lý tranh chấp (race condition).
+* Huy: Giao diện danh sách sản phẩm, cập nhật giá thời gian thực qua WebSocket.
+* Nhật: Quản lý Profile người dùng, nâng cấp tài khoản Seller, API nạp tiền.
+* Đầu ra: Người dùng có thể xem và đặt giá, giá cập nhật tức thời trên màn hình.
 
 ### Sprint 3: Nâng cao & Hoàn thiện Nghiệp vụ (Tuần 5-6)
-- **Mạnh:** Lịch sử đấu giá, dashboard quản lý sản phẩm cho user, tối ưu Database.
-- **Hưng:** Tính năng Anti-sniping (gia hạn giờ chót), xác định người thắng cuộc.
-- **Huy:** Màn hình chi tiết đấu giá (countdown, lịch sử bid), xử lý form proxy bid.
-- **Nhật:** Hệ thống đánh giá (Rating/Review), giao diện Admin cơ bản.
-- **Đầu ra:** Quy trình đấu giá hoàn chỉnh từ lúc bắt đầu đến khi kết thúc và chốt người thắng.
+
+* Mạnh: Lịch sử đấu giá, dashboard quản lý sản phẩm cho user, tối ưu Database.
+* Hưng: Tính năng Anti-sniping (gia hạn giờ chót), xác định người thắng cuộc.
+* Huy: Màn hình chi tiết đấu giá (countdown, lịch sử bid), xử lý form proxy bid.
+* Nhật: Hệ thống đánh giá (Rating/Review), giao diện Admin cơ bản.
+* Đầu ra: Quy trình đấu giá hoàn chỉnh từ lúc bắt đầu đến khi kết thúc và chốt người thắng.
 
 ### Sprint 4: Tích hợp, Kiểm thử & Đóng gói (Tuần 7-8)
-- **Cả nhóm:** 
-  - Tối ưu hóa API và Swagger Documentation.
-  - Kiểm thử hiệu năng và xử lý lỗi đồng thời.
-  - Hoàn thiện giao diện người dùng (UI/UX), hỗ trợ Dark Mode.
-  - Viết báo cáo và hướng dẫn sử dụng.
-- **Đầu ra:** Sản phẩm hoàn chỉnh, sẵn sàng demo.
+
+* Cả nhóm:
+
+  * Tối ưu hóa API và Swagger Documentation.
+  * Kiểm thử hiệu năng và xử lý lỗi đồng thời.
+  * Hoàn thiện giao diện người dùng (UI/UX), hỗ trợ Dark Mode.
+  * Viết báo cáo và hướng dẫn sử dụng.
+* Đầu ra: Sản phẩm hoàn chỉnh, sẵn sàng demo.
 
 ## 4. Công nghệ sử dụng
-- **Backend:** Spring Boot, Spring Security, JWT, JPA, WebSocket (STOMP).
-- **Frontend:** JavaFX (FXML, CSS), HttpClient/OkHttp.
-- **Database:** MySQL / PostgreSQL.
-- **Công cụ:** Git, Postman, IntelliJ/Eclipse.
+
+* Backend: Spring Boot, Spring Security, JWT, JPA, WebSocket (STOMP).
+* Frontend: JavaFX (FXML, CSS), HttpClient/OkHttp.
+* Database: MySQL / PostgreSQL.
+* Công cụ: Git, Postman, IntelliJ/Eclipse.
 
 ## 5. Phân công chi tiết (File-level Assignment)
 
 ### 1. Nguyễn Văn Mạnh (Backend Core - Auction Management)
-- **Model:** `Auction.java`, `Item.java`, `Art.java`, `Electronics.java`, `Vehicle.java` (Inheritance structure).
-- **Repository:** `AuctionRepository.java` (Xử lý các query tìm kiếm, lọc theo status).
-- **Service:** `AuctionService.java` (Các hàm CRUD auction, quản lý vòng đời đấu giá).
-- **Controller:** `AuctionController.java` (API endpoint cho auction).
+
+* Model: Auction.java, Item.java, Art.java, Electronics.java, Vehicle.java (Inheritance structure).
+* Repository: AuctionRepository.java (Xử lý các query tìm kiếm, lọc theo status).
+* Service: AuctionService.java (Các hàm CRUD auction, quản lý vòng đời đấu giá).
+* Controller: AuctionController.java (API endpoint cho auction).
 
 ### 2. Đặng Gia Hưng (Backend Bidding & Real-time)
-- **Model:** `Bid.java`, `ProxyBid.java` (Cấu trúc dữ liệu đặt giá).
-- **Repository:** `BidRepository.java`, `ProxyBidRepository.java`.
-- **Logic:** `service/strategy/` (Các thuật toán đấu giá), `service/observer/` (Hệ thống thông báo WebSocket).
-- **Nghiệp vụ:** `AuctionService.java` (Các hàm `placeBid`, `handleProxyBidding`, `endAuction`).
+
+* Model: Bid.java, ProxyBid.java (Cấu trúc dữ liệu đặt giá).
+* Repository: BidRepository.java, ProxyBidRepository.java.
+* Logic: service/strategy/ (Các thuật toán đấu giá), service/observer/ (Hệ thống thông báo WebSocket).
+* Nghiệp vụ: AuctionService.java (Các hàm placeBid, handleProxyBidding, endAuction).
 
 ### 3. Dương Văn Huy (Frontend JavaFX)
-- **Giao diện:** `view/*.fxml` (Thiết kế Login, Register, Main Dashboard, Auction Detail).
-- **Style:** `view/style.css` (Thiết kế Premium Dark Theme, Glassmorphism).
-- **Điều khiển:** `MainController.java`, `AuctionDetailController.java`.
-- **Tích hợp:** `ApiService.java` (Kết nối REST API và xử lý dữ liệu thời gian thực).
+
+* Giao diện: view/*.fxml (Thiết kế Login, Register, Main Dashboard, Auction Detail).
+* Style: view/style.css (Thiết kế Premium Dark Theme, Glassmorphism).
+* Điều khiển: MainController.java, AuctionDetailController.java.
+* Tích hợp: ApiService.java (Kết nối REST API và xử lý dữ liệu thời gian thực).
 
 ### 4. Lê Công Nhật (User Security & Admin)
-- **Model:** `User.java`, `Rating.java`, `AuditLog.java`.
-- **Repository:** `UserRepository.java`, `RatingRepository.java`, `AuditLogRepository.java`.
-- **Security:** `security/JwtUtil.java`, `config/SecurityConfig.java`, `service/CustomUserDetailsService.java`.
-- **Service:** `UserService.java` (Đăng ký, profile, ví tiền), `AuditService.java` (Ghi log hệ thống).
-- **Controller:** `AuthController.java` (API login/register).
+
+* Model: User.java, Rating.java, AuditLog.java.
+* Repository: UserRepository.java, RatingRepository.java, AuditLogRepository.java.
+* Security: security/JwtUtil.java, config/SecurityConfig.java, service/CustomUserDetailsService.java.
+* Service: UserService.java (Đăng ký, profile, ví tiền), AuditService.java (Ghi log hệ thống).
+* Controller: AuthController.java (API login/register).
 
 ---
-*Ghi chú: Mọi thay đổi về cấu trúc Database cần được thảo luận chung trước khi thực hiện.*
+
+Ghi chú: Mọi thay đổi về cấu trúc Database cần được thảo luận chung trước khi thực hiện.
