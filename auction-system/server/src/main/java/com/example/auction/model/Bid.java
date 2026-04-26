@@ -5,10 +5,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bids")
-public class Bid {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Bid extends BaseEntity {
+
+    @Column(unique = true)
+    private String idempotencyKey;
 
     private Double amount;
     private LocalDateTime timestamp;
@@ -24,8 +24,8 @@ public class Bid {
     public Bid() {}
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
     public Double getAmount() { return amount; }
     public void setAmount(Double amount) { this.amount = amount; }
     public LocalDateTime getTimestamp() { return timestamp; }

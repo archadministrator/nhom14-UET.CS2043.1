@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<StackPane xmlns="http://javafx.com/javafx/8.0.171" 
+           xmlns:fx="http://javafx.com/fxml/1" 
+           fx:controller="com.example.auctionfx.controller.RegisterController"
+           stylesheets="@style.css" styleClass="root">
+    
+    <VBox alignment="CENTER" spacing="30.0">
+        <padding>
+            <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+        </padding>
+        
+        <VBox alignment="CENTER" spacing="10">
+             <Label text="THAM GIA NGAY" styleClass="header-label" style="-fx-font-size: 32;"/>
+             <Label text="Tạo tài khoản để bắt đầu đấu giá sản phẩm yêu thích" style="-fx-text-fill: #94a3b8; -fx-font-size: 14;"/>
+        </VBox>
+
+        <VBox styleClass="card" spacing="20" maxWidth="400">
+            <VBox spacing="8">
+                <Label text="Tên đăng nhập" style="-fx-font-weight: bold;"/>
+                <TextField fx:id="usernameField" promptText="Chọn tên đăng nhập..."/>
+            </VBox>
+
+            <VBox spacing="8">
+                <Label text="Email" style="-fx-font-weight: bold;"/>
+                <TextField fx:id="emailField" promptText="Nhập địa chỉ email..."/>
+            </VBox>
+            
+            <VBox spacing="8">
+                <Label text="Mật khẩu" style="-fx-font-weight: bold;"/>
+                <StackPane alignment="CENTER_RIGHT">
+                    <PasswordField fx:id="passwordField" promptText="Nhập mật khẩu..."/>
+                    <TextField fx:id="passwordTextField" promptText="Nhập mật khẩu..." visible="false"/>
+                    <Button fx:id="showPasswordButton" text="👁" onAction="#togglePasswordVisibility" 
+                            style="-fx-background-color: transparent; -fx-text-fill: #94a3b8; -fx-cursor: hand; -fx-font-size: 16;">
+                        <padding>
+                            <Insets right="10"/>
+                        </padding>
+                    </Button>
+                </StackPane>
+            </VBox>
+            
+            <VBox spacing="15">
+                <Button text="ĐĂNG KÝ TÀI KHOẢN" onAction="#handleRegister" maxWidth="Infinity" style="-fx-font-size: 15;"/>
+                
+                <HBox alignment="CENTER" spacing="8">
+                    <Label text="Đã có tài khoản?" style="-fx-text-fill: #94a3b8;"/>
+                    <Hyperlink text="Đăng nhập tại đây" onAction="#handleBackToLogin" styleClass="hyperlink"/>
+                </HBox>
+            </VBox>
+            
+            <Label fx:id="errorLabel" textFill="#f87171" wrapText="true" alignment="CENTER" maxWidth="Infinity" 
+                   style="-fx-font-size: 13; -fx-font-weight: bold;"/>
+        </VBox>
+    </VBox>
+</StackPane>

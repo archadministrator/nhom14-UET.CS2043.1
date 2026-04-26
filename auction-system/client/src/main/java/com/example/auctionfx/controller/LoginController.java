@@ -1,35 +1,66 @@
 package com.example.auctionfx.controller;
 
 import com.example.auctionfx.AuctionFXApplication;
-import com.example.auctionfx.model.User;
 import com.example.auctionfx.service.ApiService;
-
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Button;
 
 public class LoginController {
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
+    @FXML private TextField passwordTextField;
+    @FXML private Button showPasswordButton;
     @FXML private Label errorLabel;
 
-    private ApiService apiService = new ApiService();
+    private boolean isPasswordVisible = false;
+
+    private final ApiService apiService = new ApiService();
 
     @FXML
     private void handleLogin() {
         String username = usernameField.getText();
-        String password = passwordField.getText();
+        String password = isPasswordVisible ? passwordTextField.getText() : passwordField.getText();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            errorLabel.setText("Vui lòng nhập đầy đủ thông tin!");
+            return;
+        }
+
         try {
-            User user = apiService.login(username, password);
-            if (user != null) {
-                AuctionFXApplication.setLoggedInUser(user);
-                AuctionFXApplication.showMainView();
+            boolean success = apiService.login(username, password);
+            if (success) {
+                AuctionFXApplication.setRoot("view/main");
             } else {
-                errorLabel.setText("Invalid credentials");
+                errorLabel.setText("Sai tên đăng nhập hoặc mật khẩu!");
             }
         } catch (Exception e) {
-            errorLabel.setText("Error: " + e.getMessage());
+            e.printStackTrace();
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            errorLabel.setText("Lỗi: " + msg);
         }
+    }
+
+    @FXML
+    private void togglePasswordVisibility() {
+        isPasswordVisible = !isPasswordVisible;
+        if (isPasswordVisible) {
+            passwordTextField.setText(passwordField.getText());
+            passwordTextField.setVisible(true);
+            passwordField.setVisible(false);
+            showPasswordButton.setText("🔒");
+        } else {
+            passwordField.setText(passwordTextField.getText());
+            passwordField.setVisible(true);
+            passwordTextField.setVisible(false);
+            showPasswordButton.setText("👁");
+        }
+    }
+
+    @FXML
+    private void handleGoToRegister() throws Exception {
+        AuctionFXApplication.setRoot("view/register");
     }
 }

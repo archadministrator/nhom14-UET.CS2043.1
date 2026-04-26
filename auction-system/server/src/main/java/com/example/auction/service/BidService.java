@@ -1,12 +1,11 @@
 package com.example.auction.service;
 
-import com.example.auction.model.Auction;
 import com.example.auction.model.Bid;
 import com.example.auction.model.User;
 import com.example.auction.repository.BidRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BidService {
@@ -17,21 +16,21 @@ public class BidService {
     @Autowired
     private UserService userService;
 
+    @Transactional
     public Bid placeBid(Long auctionId, Long userId, Double amount) {
-        Auction auction = auctionService.getAuctionById(auctionId);
-        User user = userService.findById(userId).orElse(null);
-        if (auction == null || user == null) return null;
-        if (amount <= auction.getCurrentPrice()) return null;
-        if (auction.getEndTime().isBefore(LocalDateTime.now())) return null;
+        User bidder = userService.findById(userId).orElse(null);
+        if (bidder == null) return null;
 
         Bid bid = new Bid();
-        bid.setAuction(auction);
-        bid.setBidder(user);
+        bid.setBidder(bidder);
         bid.setAmount(amount);
-        bid.setTimestamp(LocalDateTime.now());
-        bidRepository.save(bid);
 
-        auctionService.updateCurrentPrice(auctionId, amount);
-        return bid;
+        // Ủy quyền logic kiểm tra và cập nhật cho AuctionService
+        boolean success = auctionService.placeBid(auctionId, bid);
+        
+        if (success) {
+            return bidRepository.save(bid);
+        }
+        return null;
     }
 }
