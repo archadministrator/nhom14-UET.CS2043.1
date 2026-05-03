@@ -1,60 +1,79 @@
-package com.example.auction.model;
+package com.auction.model;
 
+import com.auction.model.enums.AuctionStatus;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "auctions")
+@Table(name = "auction_items")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AuctionItem {
 
-    @JoinColumn(name = "item_id")
-    private Item item;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    private Double startingPrice;
-    private Double currentPrice;
-    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seller_id", nullable = false)
+    private User seller;
+
+    @Column(nullable = false, length = 200)
+    private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "start_price", nullable = false, precision = 15, scale = 2)
+    private BigDecimal startPrice;
+
+    @Column(name = "current_price", nullable = false, precision = 15, scale = 2)
+    private BigDecimal currentPrice;
+
+    @Column(name = "min_increment", nullable = false, precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal minIncrement = new BigDecimal("1000");
+
+    @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
+
+    @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
     @Enumerated(EnumType.STRING)
-    private AuctionStatus status = AuctionStatus.PENDING;
+    @Column(nullable = false)
+    @Builder.Default
+    private AuctionStatus status = AuctionStatus.OPEN;
 
-    @Version
-    private Long version;
-
-    @ManyToOne
-    @JoinColumn(name = "seller_id")
-    private User seller;
-
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "winner_id")
     private User winner;
 
-    @OneToMany(mappedBy = "auction", cascade = CascadeType.ALL)
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "auctionItem", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
     private List<Bid> bids = new ArrayList<>();
 
-    public AuctionItem() {}
+    public boolean isAcceptingBids() {
+        return status == AuctionStatus.RUNNING
+                && LocalDateTime.now().isBefore(endTime);
+    }
 
-    public Item getItem() { return item; }
-    public void setItem(Item item) { this.item = item; }
-    public Double getStartingPrice() { return startingPrice; }
-    public void setStartingPrice(Double startingPrice) {this.startingPrice = startingPrice; }
-    public Double getCurrentPrice() { return currentPrice; }
-    public void setCurrentPrice(Double currentPrice) { this.currentPrice = currentPrice; }
-    public LocalDateTime getStartTime() { return startTime; }
-    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
-    public LocalDateTime getEndTime() { return endTime; }
-    public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
-    public AuctionStatus getStatus() { return status; }
-    public void setStatus(AuctionStatus status) { this.status = status; }
-    public Long getVersion() { return version; }
-    public User getSeller() { return seller; }
-    public void setSeller(User seller) { this.seller = seller; }
-    public User getWinner() { return winner; }
-    public void setWinner(User winner) { this.winner = winner; }
-    public List<Bid> getBids() { return bids; }
-    public void setBids(List<Bid> bids) { this.bids = bids; }
+    public BigDecimal minimumNextBid() {
+        return currentPrice.add(minIncrement);
+    }
 }
