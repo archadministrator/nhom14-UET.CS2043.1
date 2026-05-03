@@ -41,7 +41,7 @@ public class AuctionItem {
     public Item getItem() { return item; }
     public void setItem(Item item) { this.item = item; }
     public Double getStartingPrice() { return startingPrice; }
-    public void setStartingPrice(Double startingPrice) { this.startingPrice = startingPrice; }
+    public void setStartingPrice(Double startingPrice) {this.startingPrice = startingPrice; }
     public Double getCurrentPrice() { return currentPrice; }
     public void setCurrentPrice(Double currentPrice) { this.currentPrice = currentPrice; }
     public LocalDateTime getStartTime() { return startTime; }
