@@ -81,7 +81,6 @@ Xây dựng một hệ thống đấu giá trực tuyến thời gian thực v�
 * Điều khiển: MainController.java, AuctionDetailController.java.
 * Tích hợp: ApiService.java (Kết nối REST API và xử lý dữ liệu thời gian thực).
 
-### 4. Lê Công Nhật (User Security & Admin)
 
 * Model: User.java, Rating.java, AuditLog.java.
 * Repository: UserRepository.java, RatingRepository.java, AuditLogRepository.java.
