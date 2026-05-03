@@ -1,15 +1,15 @@
 package com.example.auction.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "auctions")
-public class Auction extends BaseEntity {
+public class AuctionItem {
 
-    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "item_id")
     private Item item;
 
@@ -36,7 +36,7 @@ public class Auction extends BaseEntity {
     @OneToMany(mappedBy = "auction", cascade = CascadeType.ALL)
     private List<Bid> bids = new ArrayList<>();
 
-    public Auction() {}
+    public AuctionItem() {}
 
     public Item getItem() { return item; }
     public void setItem(Item item) { this.item = item; }
