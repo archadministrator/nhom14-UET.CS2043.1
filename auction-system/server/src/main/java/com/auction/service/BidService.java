@@ -8,7 +8,6 @@ import com.auction.model.AuctionItem;
 import com.auction.model.Bid;
 import com.auction.model.User;
 import com.auction.util.Dto;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -19,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -51,14 +51,8 @@ public class BidService {
     }
 
     @Transactional
-    public Dto.BidResponse placeBid(Long auctionId, Dto.PlaceBidRequest req, String bidderUsername) {
-        ReentrantLock lock = getLockForAuction(auctionId);
-        lock.lock();
-        try {
-            return doPlaceBid(auctionId, req.amount(), bidderUsername, false);
-        } finally {
-            lock.unlock();
-        }
+    public synchronized Dto.BidResponse placeBid(Long auctionId, Dto.PlaceBidRequest req, String bidderUsername) {
+        return doPlaceBid(auctionId, req.amount(), bidderUsername, false);
     }
 
     Dto.BidResponse doPlaceBid(Long auctionId, BigDecimal amount,
@@ -78,13 +72,17 @@ public class BidService {
                     "Giá đặt tối thiểu là %,.0f₫ (hiện tại %,.0f₫ + mức tăng %,.0f₫)",
                     minBid, item.getCurrentPrice(), item.getMinIncrement()));
 
-        if (bidder.getBalance().compareTo(amount) < 0)
-            throw new InsufficientBalanceException();
+        // 1. Lưu thông tin người đang giữ giá cao nhất để hoàn tiền
+        Optional<Bid> topBidOpt = bidRepo.findTopBidByAuction(item);
 
-        // Anti-sniping: bid trong 2 phút cuối → gia hạn thêm 2 phút
+        // 2. Thử trừ tiền người đặt giá mới (Nếu không đủ tiền sẽ văng ngoại lệ và Transaction sẽ rollback)
+        userService.subtractBalance(bidderUsername, amount);
+
+        // 3. Nếu trừ tiền thành công, tiến hành cập nhật đấu giá
+        // Anti-sniping: bid trong 5 phút cuối → gia hạn thêm 5 phút
         LocalDateTime now = LocalDateTime.now();
-        if (item.getEndTime().minusMinutes(2).isBefore(now)) {
-            item.setEndTime(item.getEndTime().plusMinutes(2));
+        if (item.getEndTime().minusMinutes(5).isBefore(now)) {
+            item.setEndTime(item.getEndTime().plusMinutes(5));
             log.info("Auction [{}] gia hạn anti-sniping → endTime: {}", auctionId, item.getEndTime());
         }
 
@@ -98,6 +96,15 @@ public class BidService {
                 .build();
 
         Bid savedBid = bidRepo.save(bid);
+
+        // 4. Hoàn tiền cho người bị vượt mặt (người giữ giá cũ)
+        if (topBidOpt.isPresent()) {
+            Bid oldTopBid = topBidOpt.get();
+            userService.addBalance(oldTopBid.getBidder().getUsername(), oldTopBid.getAmount());
+            log.info("Hoàn tiền cho người giữ giá cũ: {} số tiền {}",
+                    oldTopBid.getBidder().getUsername(), oldTopBid.getAmount());
+        }
+
         log.info("Bid [{}] auction={} bidder={} amount={} auto={}",
                 savedBid.getId(), auctionId, bidderUsername, amount, isAuto);
 
