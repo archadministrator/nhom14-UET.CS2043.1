@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @Slf4j
@@ -98,9 +97,7 @@ public class AutoBidService {
             return;
         }
 
-        ReentrantLock lock = bidService.getLock(item.getId());
-        lock.lock();
-        try {
+        synchronized (bidService) {
             AuctionItem freshItem = auctionService.findById(item.getId());
             BigDecimal freshNext = freshItem.getCurrentPrice().add(topConfig.getIncrement());
 
@@ -108,8 +105,6 @@ public class AutoBidService {
                 bidService.doPlaceBid(item.getId(), freshNext,
                         topConfig.getBidder().getUsername(), true);
             }
-        } finally {
-            lock.unlock();
         }
     }
 }
