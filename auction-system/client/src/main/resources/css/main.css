@@ -1,0 +1,84 @@
+.root {
+    -fx-font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    -fx-font-size: 13px;
+}
+
+.table-view {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.table-view .column-header-background {
+    -fx-background-color: #F5F5F5;
+}
+.table-view .column-header,
+.table-view .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent #E0E0E0 transparent;
+    -fx-size: 36px;
+}
+.table-view .column-header .label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #424242;
+    -fx-font-size: 12px;
+}
+.table-row-cell {
+    -fx-border-color: transparent transparent #F5F5F5 transparent;
+    -fx-background-color: white;
+}
+.table-row-cell:selected {
+    -fx-background-color: #E3F2FD;
+}
+.table-row-cell:selected .text {
+    -fx-fill: #0D47A1;
+}
+.table-row-cell:hover {
+    -fx-background-color: #F8F9FA;
+}
+
+.text-field,
+.password-field,
+.text-area {
+    -fx-background-color: white;
+    -fx-border-color: #DDDDDD;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+.text-field:focused,
+.password-field:focused,
+.text-area:focused {
+    -fx-border-color: #1565C0;
+    -fx-background-color: white;
+}
+
+.button {
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+.button:hover  { -fx-opacity: 0.88; }
+.button:pressed { -fx-opacity: 0.75; }
+.button:disabled { -fx-opacity: 0.45; }
+
+.combo-box {
+    -fx-background-color: white;
+    -fx-border-color: #DDDDDD;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+.combo-box:focused { -fx-border-color: #1565C0; }
+
+.scroll-pane { -fx-background-color: transparent; }
+.scroll-pane > .viewport { -fx-background-color: transparent; }
+
+.split-pane { -fx-background-color: #F5F7FA; -fx-border-color: transparent; }
+.split-pane-divider { -fx-background-color: #E0E0E0; -fx-padding: 0 1; }
+
+.chart { -fx-background-color: transparent; }
+.chart-plot-background { -fx-background-color: #FAFAFA; }
+.chart-series-line { -fx-stroke: #1565C0; -fx-stroke-width: 2; }
+.chart-line-symbol { -fx-background-color: #1565C0, white; }
+.axis { -fx-tick-label-font-size: 11px; }
+
+.separator .line {
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 1 0 0 0;
+}
