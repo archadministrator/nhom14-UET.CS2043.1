@@ -14,7 +14,7 @@ jobs:
           uses: actions/setup-java@v4
           with:
             java-version: "21"
-            distribution: "termurin"
+            distribution: "temurin"
             architecture: x64
         - name: Maven build
           run: mvn -B clean verify --file pom.xml
