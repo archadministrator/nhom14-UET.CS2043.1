@@ -1,0 +1,28 @@
+name: basic CI
+
+on: 
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v4
+        - name: Setup JDK 21 for x64
+          uses: actions/setup-java@v4
+          with:
+            java-version: "21"
+            distribution: "temurin"
+            architecture: x64
+        - name: Maven build
+          working-directory: auction-system/server
+          run: mvn -B clean verify 
+
+        - name: upload test report
+          uses: actions/upload-artifact@v4
+          if: always()
+          with: 
+            name: test-reports
+            path: "server/**/target/surefire-reports/"
