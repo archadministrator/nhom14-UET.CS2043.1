@@ -17,7 +17,7 @@ jobs:
             distribution: "temurin"
             architecture: x64
         - name: Maven build
-          working-directory: server
+          working-directory: auction-system/server
           run: mvn -B clean verify 
 
         - name: upload test report
