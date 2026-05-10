@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.auction.client.controller.AdminDashboardController"
+            prefWidth="1100"
+            prefHeight="720"
+            style="-fx-background-color: #F8F9FA;">
+
+    <!-- ── TOP NAV (Admin Style: Deep Indigo/Red) ────────────────── -->
+    <top>
+        <HBox alignment="CENTER_LEFT"
+              spacing="16"
+              prefHeight="60"
+              style="-fx-background-color: #1A237E; -fx-padding: 0 24;">
+
+            <Label text="AUCTION ADMIN"
+                   style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+            
+            <Separator orientation="VERTICAL" prefHeight="30" style="-fx-padding: 0 10;"/>
+            
+            <Label text="Bảng điều khiển hệ thống"
+                   style="-fx-font-size: 14px; -fx-text-fill: #C5CAE9;"/>
+
+            <Pane HBox.hgrow="ALWAYS"/>
+
+            <HBox alignment="CENTER" spacing="12">
+                <Label fx:id="lblAdminName" text="Admin" style="-fx-text-fill: white; -fx-font-weight: bold;"/>
+                <Button text="Đăng xuất"
+                        onAction="#handleLogout"
+                        style="-fx-background-color: transparent; -fx-text-fill: #FFCDD2;
+                               -fx-border-color: #EF9A9A; -fx-border-radius: 4; -fx-cursor: hand;"/>
+            </HBox>
+        </HBox>
+    </top>
+
+    <!-- ── CENTER: Content Area ────────────────────────── -->
+    <center>
+        <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE" styleClass="admin-tabs">
+            
+            <!-- TAB 1: USER MANAGEMENT -->
+            <Tab text="Quản lý Người dùng">
+                <VBox spacing="15" style="-fx-padding: 20;">
+                    <HBox alignment="CENTER_LEFT" spacing="15">
+                        <Label text="Danh sách tài khoản" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Pane HBox.hgrow="ALWAYS"/>
+                        <TextField fx:id="txtSearchUser" promptText="Tìm username/email..." prefWidth="250"/>
+                        <Button text="Làm mới" onAction="#refreshUsers" style="-fx-background-color: #3F51B5; -fx-text-fill: white;"/>
+                    </HBox>
+
+                    <TableView fx:id="tblUsers" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colUserId" text="ID" prefWidth="50"/>
+                            <TableColumn fx:id="colUsername" text="Username" prefWidth="150"/>
+                            <TableColumn fx:id="colEmail" text="Email" prefWidth="200"/>
+                            <TableColumn fx:id="colRole" text="Vai trò" prefWidth="100"/>
+                            <TableColumn fx:id="colBalance" text="Số dư" prefWidth="120"/>
+                            <TableColumn fx:id="colStatus" text="Trạng thái" prefWidth="100"/>
+                            <TableColumn fx:id="colActions" text="Hành động" prefWidth="150"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </Tab>
+
+            <!-- TAB 2: AUCTION MANAGEMENT -->
+            <Tab text="Quản lý Đấu giá">
+                <VBox spacing="15" style="-fx-padding: 20;">
+                    <HBox alignment="CENTER_LEFT" spacing="15">
+                        <Label text="Tất cả phiên đấu giá" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Pane HBox.hgrow="ALWAYS"/>
+                        <Button text="Làm mới" onAction="#refreshAuctions" style="-fx-background-color: #3F51B5; -fx-text-fill: white;"/>
+                    </HBox>
+
+                    <TableView fx:id="tblAuctions" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colAucId" text="ID" prefWidth="50"/>
+                            <TableColumn fx:id="colAucName" text="Sản phẩm" prefWidth="250"/>
+                            <TableColumn fx:id="colAucSeller" text="Người bán" prefWidth="120"/>
+                            <TableColumn fx:id="colAucPrice" text="Giá hiện tại" prefWidth="130"/>
+                            <TableColumn fx:id="colAucStatus" text="Trạng thái" prefWidth="120"/>
+                            <TableColumn fx:id="colAucEndTime" text="Kết thúc" prefWidth="150"/>
+                            <TableColumn fx:id="colAucActions" text="Hành động" prefWidth="150"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </Tab>
+
+            <!-- TAB 3: SYSTEM STATS -->
+            <Tab text="Thống kê hệ thống">
+                <GridPane hgap="20" vgap="20" style="-fx-padding: 40;">
+                    <VBox spacing="10" alignment="CENTER" prefWidth="250" prefHeight="150"
+                          style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                        <Label text="Tổng người dùng" style="-fx-text-fill: #757575;"/>
+                        <Label fx:id="lblTotalUsers" text="0" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #3F51B5;"/>
+                    </VBox>
+                    
+                    <VBox spacing="10" alignment="CENTER" prefWidth="250" prefHeight="150" GridPane.columnIndex="1"
+                          style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                        <Label text="Phiên đang chạy" style="-fx-text-fill: #757575;"/>
+                        <Label fx:id="lblRunningAuctions" text="0" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #43A047;"/>
+                    </VBox>
+
+                    <VBox spacing="10" alignment="CENTER" prefWidth="250" prefHeight="150" GridPane.rowIndex="1"
+                          style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                        <Label text="Giao dịch thành công" style="-fx-text-fill: #757575;"/>
+                        <Label fx:id="lblFinishedAuctions" text="0" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #FB8C00;"/>
+                    </VBox>
+                </GridPane>
+            </Tab>
+        </TabPane>
+    </center>
+
+</BorderPane>
