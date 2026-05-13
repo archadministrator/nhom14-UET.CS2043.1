@@ -17,7 +17,6 @@ public interface AuctionItemRepository extends JpaRepository<AuctionItem, Long> 
     List<AuctionItem> findByStatus(AuctionStatus status);
 
     List<AuctionItem> findBySeller(User seller);
-
     List<AuctionItem> findBySellerOrderByCreatedAtDesc(User seller);
 
     @Query("SELECT a FROM AuctionItem a WHERE a.status = 'OPEN' AND a.startTime <= :now")
