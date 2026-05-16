@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class SellerDashboardController {
+public class SellerDashBoardController {
 
     @FXML private Label     lblFormTitle;
     @FXML private TextField txtName, txtStartPrice, txtIncrement, txtStartTime, txtEndTime, txtImageUrl;
