@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class SellerDashBoardController {
+public class SellerDashboardController {
 
     @FXML private Label     lblFormTitle;
     @FXML private TextField txtName, txtStartPrice, txtIncrement, txtStartTime, txtEndTime, txtImageUrl;
@@ -75,7 +75,7 @@ public class SellerDashBoardController {
     }
 
     private void prefillDefaultTimes() {
-        LocalDateTime now = LocalDateTime.now().plusMinutes(5);
+        LocalDateTime now = LocalDateTime.now().plusMinutes(10);
         txtStartTime.setText(now.format(DTF_IN));
         txtEndTime.setText(now.plusDays(3).format(DTF_IN));
     }
@@ -145,6 +145,11 @@ public class SellerDashBoardController {
 
         if (!endTime.isAfter(startTime.plusMinutes(4))) {
             showMsg("Thời gian kết thúc phải sau bắt đầu ít nhất 5 phút.", false);
+            return;
+        }
+
+        if (!startTime.isAfter(LocalDateTime.now())) {
+            showMsg("Thời gian bắt đầu phải ở trong tương lai.", false);
             return;
         }
 

@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auctions").hasRole("SELLER")
                         .requestMatchers(HttpMethod.PUT, "/api/auctions/**").hasAnyRole("SELLER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/auctions/**").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/bids/*/history").authenticated()
                         .requestMatchers("/api/bids/**").hasRole("BIDDER")
                         .requestMatchers("/api/autobid/**").hasRole("BIDDER")
                         .anyRequest().authenticated()

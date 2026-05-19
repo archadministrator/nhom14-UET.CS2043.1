@@ -1,6 +1,9 @@
 package com.auction.client.controller;
 
 import com.auction.client.model.ClientDto.*;
+import com.auction.client.realtime.AuctionEvent;
+import com.auction.client.realtime.AuctionEventBus;
+import com.auction.client.realtime.AuctionObserver;
 import com.auction.client.service.ApiService;
 import com.auction.client.service.SessionManager;
 import com.auction.client.service.WebSocketService;
@@ -26,7 +29,7 @@ import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class AuctionDetailController {
+public class AuctionDetailController implements AuctionObserver {
 
     @FXML private Label lblAuctionName, lblStatusBadge, lblCountdown;
     @FXML private Label lblProductName, lblDescription;
@@ -49,9 +52,10 @@ public class AuctionDetailController {
     private final ObservableList<BidDto> bidData = FXCollections.observableArrayList();
     private final XYChart.Series<Number, Number> priceSeries = new XYChart.Series<>();
 
-    private final ApiService      api     = ApiService.getInstance();
-    private final SessionManager  session = SessionManager.getInstance();
-    private final WebSocketService ws     = WebSocketService.getInstance();
+    private final ApiService      api      = ApiService.getInstance();
+    private final SessionManager  session  = SessionManager.getInstance();
+    private final WebSocketService ws      = WebSocketService.getInstance();
+    private final AuctionEventBus  eventBus = AuctionEventBus.getInstance();
 
     private static final NumberFormat CURRENCY =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
@@ -64,7 +68,11 @@ public class AuctionDetailController {
             populateInfo();
             setupBidTable();
             setupChart();
-            loadBidHistory();
+            if (!session.isSeller()) {
+                loadBidHistory();
+            } else {
+                hideBidHistorySection();
+            }
             subscribeRealtime();
             startCountdown();
         });
@@ -166,6 +174,14 @@ public class AuctionDetailController {
 
     @FXML public void refreshBidHistory() { loadBidHistory(); }
 
+    /** Ẩn hoàn toàn section lịch sử bid cho SELLER (không có quyền xem) */
+    private void hideBidHistorySection() {
+        tblBids.setVisible(false);
+        tblBids.setManaged(false);
+        priceChart.setVisible(false);
+        priceChart.setManaged(false);
+    }
+
     private void setupChart() {
         xAxis.setLabel("Lượt bid");
         yAxis.setLabel("Giá (₫)");
@@ -183,32 +199,82 @@ public class AuctionDetailController {
     }
 
     private void subscribeRealtime() {
-        ws.subscribeToAuction(currentAuction.getId(), msg -> Platform.runLater(() -> {
-            currentAuction.setCurrentPrice(msg.getCurrentPrice());
-            currentAuction.setTotalBids(msg.getTotalBids());
-            if (msg.getEndTime() != null) currentAuction.setEndTime(msg.getEndTime());
+        // Đăng ký Observer vào EventBus — không dùng callback trực tiếp
+        eventBus.subscribe(currentAuction.getId(), this);
+        // Yêu cầu WebSocketService gửi STOMP SUBSCRIBE frame
+        ws.subscribeToAuction(currentAuction.getId());
+    }
 
-            updateLivePrice();
-            if (msg.getLeaderUsername() != null)
-                lblLeader.setText("Đang dẫn: " + msg.getLeaderUsername());
+    private void unsubscribeRealtime() {
+        eventBus.unsubscribe(currentAuction.getId(), this);
+        ws.unsubscribeFromAuction(currentAuction.getId());
+    }
 
-            if ("AUCTION_CLOSED".equals(msg.getType())) {
-                currentAuction.setStatus("FINISHED");
-                updateStatusBadge();
-                bidPanel.setVisible(false);
-                bidPanel.setManaged(false);
-                winnerPanel.setVisible(true);
-                winnerPanel.setManaged(true);
-                lblWinner.setText(msg.getLeaderUsername() != null
-                        ? msg.getLeaderUsername() : "Không có người thắng");
-                stopCountdown();
-            }
+    /**
+     * Observer callback — đảm bảo chạy trên FX Thread bởi AuctionEventBus.
+     * Không gọi HTTP, không polling — chỉ cập nhật UI từ dữ liệu trong event.
+     */
+    @Override
+    public void onEvent(AuctionEvent event) {
+        // Bỏ qua event của phiên khác (phòng trường hợp global bus)
+        if (event.getAuctionId() != currentAuction.getId()) return;
 
-            int nextX = priceSeries.getData().size() + 1;
-            priceSeries.getData().add(
-                    new XYChart.Data<>(nextX, msg.getCurrentPrice().doubleValue()));
-            loadBidHistory();
-        }));
+        switch (event.getType()) {
+            case NEW_BID -> handleNewBidEvent(event);
+            case AUCTION_CLOSED -> handleClosedEvent(event);
+            case AUCTION_STARTED -> { /* không cần xử lý trong detail view */ }
+        }
+    }
+
+    private void handleNewBidEvent(AuctionEvent event) {
+        // Cập nhật model
+        currentAuction.setCurrentPrice(event.getCurrentPrice());
+        currentAuction.setTotalBids(event.getTotalBids());
+
+        // Anti-sniping: endTime bị gia hạn
+        if (event.getEndTime() != null
+                && !event.getEndTime().equals(currentAuction.getEndTime())) {
+            currentAuction.setEndTime(event.getEndTime());
+            lblEndTime.setText(event.getEndTime().format(DTF));
+            lblEndTime.setStyle("-fx-text-fill:#FF5252;-fx-font-weight:bold;");
+        }
+
+        // Cập nhật labels
+        updateLivePrice();
+        if (event.getLeaderUsername() != null)
+            lblLeader.setText("Đang dẫn: " + event.getLeaderUsername());
+
+        // Thêm điểm mới vào chart (không reload toàn bộ)
+        int nextX = priceSeries.getData().size() + 1;
+        priceSeries.getData().add(
+                new XYChart.Data<>(nextX, event.getCurrentPrice().doubleValue()));
+
+        // Thêm hàng mới vào bảng — tạo BidDto tạm từ event data, KHÔNG gọi HTTP
+        BidDto liveRow = new BidDto();
+        liveRow.setAuctionId(event.getAuctionId());
+        liveRow.setAmount(event.getCurrentPrice());
+        liveRow.setBidTime(java.time.LocalDateTime.now());
+        UserDto bidderDto = new UserDto();
+        bidderDto.setUsername(event.getLeaderUsername() != null ? event.getLeaderUsername() : "—");
+        liveRow.setBidder(bidderDto);
+        // Chèn đầu danh sách (bid mới nhất lên trên)
+        bidData.add(0, liveRow);
+    }
+
+    private void handleClosedEvent(AuctionEvent event) {
+        currentAuction.setCurrentPrice(event.getCurrentPrice());
+        currentAuction.setStatus("FINISHED");
+        updateStatusBadge();
+        updateLivePrice();
+
+        bidPanel.setVisible(false);
+        bidPanel.setManaged(false);
+        winnerPanel.setVisible(true);
+        winnerPanel.setManaged(true);
+        lblWinner.setText(event.getLeaderUsername() != null
+                ? event.getLeaderUsername() : "Không có người thắng");
+        stopCountdown();
+        lblCountdown.setText("Đã kết thúc");
     }
 
     private void startCountdown() {
@@ -321,6 +387,7 @@ public class AuctionDetailController {
     @FXML
     public void handleBack() {
         stopCountdown();
+        unsubscribeRealtime();
         ws.unsubscribeFromAuction(currentAuction.getId());
         FxUtil.switchScene(lblAuctionName, "/fxml/auction-list.fxml", "Danh sách đấu giá");
     }

@@ -1,6 +1,8 @@
 package com.auction.client.controller;
 
 import com.auction.client.model.ClientDto.*;
+import com.auction.client.realtime.AuctionEvent;
+import com.auction.client.realtime.AuctionEventBus;
 import com.auction.client.service.ApiService;
 import com.auction.client.service.SessionManager;
 import com.auction.client.service.WebSocketService;
@@ -31,9 +33,10 @@ public class AuctionListController {
     @FXML private TableColumn<AuctionDto,String> colBids, colStatus, colEndTime, colSeller;
 
     private final ObservableList<AuctionDto> auctionData = FXCollections.observableArrayList();
-    private final ApiService      api     = ApiService.getInstance();
-    private final SessionManager  session = SessionManager.getInstance();
-    private final WebSocketService ws     = WebSocketService.getInstance();
+    private final ApiService      api      = ApiService.getInstance();
+    private final SessionManager  session  = SessionManager.getInstance();
+    private final WebSocketService ws      = WebSocketService.getInstance();
+    private final AuctionEventBus  eventBus = AuctionEventBus.getInstance();
 
     private static final NumberFormat CURRENCY =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
@@ -97,25 +100,45 @@ public class AuctionListController {
     }
 
     private void connectWebSocket() {
-        ws.connect();
-        ws.setGlobalListener(msg -> Platform.runLater(() -> {
-            updateAuctionRow(msg);
+        lblWsStatus.setText("○ Đang kết nối...");
+        lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#FB8C00;");
+
+        // Đăng ký Global Observer vào EventBus
+        eventBus.subscribeGlobal(event -> {
+            updateAuctionRow(event);
             lblWsStatus.setText("● Trực tiếp");
             lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#43A047;");
-        }));
-        lblWsStatus.setText("● Đã kết nối");
-        lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#43A047;");
+        });
+
+        ws.subscribeGlobal();
+        ws.connect();
+
+        // Kiểm tra trạng thái sau 2 giây
+        Thread checker = new Thread(() -> {
+            try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+            Platform.runLater(() -> {
+                if (ws.isConnected()) {
+                    lblWsStatus.setText("● Đã kết nối");
+                    lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#43A047;");
+                } else {
+                    lblWsStatus.setText("✕ Mất kết nối");
+                    lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#E53935;");
+                }
+            });
+        });
+        checker.setDaemon(true);
+        checker.start();
     }
 
-    private void updateAuctionRow(BidUpdateMessage msg) {
+    private void updateAuctionRow(AuctionEvent event) {
         for (int i = 0; i < auctionData.size(); i++) {
             AuctionDto a = auctionData.get(i);
-            if (a.getId().equals(msg.getAuctionId())) {
-                a.setCurrentPrice(msg.getCurrentPrice());
-                a.setTotalBids(msg.getTotalBids());
-                if (msg.getEndTime() != null) a.setEndTime(msg.getEndTime());
-                if ("AUCTION_CLOSED".equals(msg.getType())) a.setStatus("FINISHED");
-                if ("AUCTION_STARTED".equals(msg.getType())) a.setStatus("RUNNING");
+            if (a.getId().equals(event.getAuctionId())) {
+                a.setCurrentPrice(event.getCurrentPrice());
+                a.setTotalBids(event.getTotalBids());
+                if (event.getEndTime() != null) a.setEndTime(event.getEndTime());
+                if (event.getType() == AuctionEvent.Type.AUCTION_CLOSED)  a.setStatus("FINISHED");
+                if (event.getType() == AuctionEvent.Type.AUCTION_STARTED) a.setStatus("RUNNING");
                 break;
             }
         }
