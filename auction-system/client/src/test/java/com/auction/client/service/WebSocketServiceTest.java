@@ -238,7 +238,7 @@ public class WebSocketServiceTest {
         invokeMethod(service, "handleStompFrame", new Class<?>[]{String.class}, rawStompMessageFrame);
 
         ArgumentCaptor<AuctionEvent> eventCaptor = ArgumentCaptor.forClass(AuctionEvent.class);
-        verify(mockObserver).onUpdate(eventCaptor.capture());
+        verify(mockObserver).onEvent(eventCaptor.capture());
 
         AuctionEvent event = eventCaptor.getValue();
         assertNotNull(event);
