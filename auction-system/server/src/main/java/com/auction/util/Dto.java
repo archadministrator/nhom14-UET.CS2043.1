@@ -191,4 +191,10 @@ public class Dto {
             long totalBids,
             LocalDateTime endTime
     ) {}
+
+    public record AccountStatusMessage(
+            String type,
+            String username,
+            String message
+    ) {}
 }

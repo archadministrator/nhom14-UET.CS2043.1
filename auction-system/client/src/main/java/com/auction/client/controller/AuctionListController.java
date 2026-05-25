@@ -111,6 +111,14 @@ public class AuctionListController {
         });
 
         ws.subscribeGlobal();
+        ws.subscribeToUserTopic(session.getUsername(), () -> {
+            Platform.runLater(() -> {
+                FxUtil.showError("Tài khoản của bạn đã bị khóa bởi Quản trị viên.");
+                ws.disconnect();
+                session.logout();
+                FxUtil.switchScene(lblUsername, "/fxml/login.fxml", "Đăng nhập");
+            });
+        });
         ws.connect();
 
         // Kiểm tra trạng thái sau 2 giây
