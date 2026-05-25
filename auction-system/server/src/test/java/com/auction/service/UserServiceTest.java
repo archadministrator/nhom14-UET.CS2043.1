@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,6 +36,7 @@ class UserServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock AuthenticationManager authManager;
     @Mock JwtUtil jwtUtil;
+    @Mock SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks UserService userService;
 
