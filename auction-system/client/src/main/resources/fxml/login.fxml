@@ -7,112 +7,112 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.auction.client.controller.LoginController"
-      alignment="CENTER"
-      spacing="0"
-      prefWidth="420"
-      prefHeight="560"
-      style="-fx-background-color: #F5F7FA;">
+<!-- Login screen — Spotify dark theme -->
+<StackPane xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.auction.client.controller.LoginController"
+           prefWidth="460"
+           prefHeight="600"
+           styleClass="login-screen"
+           stylesheets="@../css/main.css">
 
-    <!-- Header -->
-    <VBox alignment="CENTER"
-          spacing="6"
-          style="-fx-background-color: #1565C0; -fx-padding: 32 0 28 0;">
-        <Label text="AuctionSystem"
-               style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white;"/>
-        <Label text="Hệ thống đấu giá trực tuyến"
-               style="-fx-font-size: 13px; -fx-text-fill: #90CAF9;"/>
-    </VBox>
+    <!-- Background pattern (subtle dot texture via nested pane) -->
+    <Pane styleClass="login-screen"/>
 
-    <!-- Tab bar -->
-    <HBox style="-fx-background-color: #1976D2;">
-        <Button fx:id="btnTabLogin"
-                text="Đăng nhập"
-                onAction="#switchToLogin"
-                maxWidth="Infinity"
-                prefHeight="40"
-                HBox.hgrow="ALWAYS"
-                style="-fx-background-color: white; -fx-text-fill: #1565C0;
-                       -fx-font-weight: bold; -fx-font-size: 13px;
-                       -fx-border-color: transparent; -fx-cursor: hand;"/>
-        <Button fx:id="btnTabRegister"
-                text="Đăng ký"
-                onAction="#switchToRegister"
-                maxWidth="Infinity"
-                prefHeight="40"
-                HBox.hgrow="ALWAYS"
-                style="-fx-background-color: transparent; -fx-text-fill: #BBDEFB;
-                       -fx-font-size: 13px; -fx-border-color: transparent; -fx-cursor: hand;"/>
-    </HBox>
+    <!-- Centered card -->
+    <VBox alignment="CENTER" spacing="0" maxWidth="400" maxHeight="560">
 
-    <!-- Form card -->
-    <VBox spacing="14"
-          style="-fx-background-color: white; -fx-padding: 28 36 28 36;">
-
-        <!-- LOGIN FIELDS -->
-        <VBox fx:id="loginFields" spacing="12">
-            <VBox spacing="5">
-                <Label text="Tên đăng nhập"
-                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #424242;"/>
-                <TextField fx:id="txtUsername"
-                           promptText="Nhập username"/>
-            </VBox>
-            <VBox spacing="5">
-                <Label text="Mật khẩu"
-                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #424242;"/>
-                <PasswordField fx:id="txtPassword"
-                               promptText="Nhập mật khẩu"/>
-            </VBox>
+        <!-- Brand header -->
+        <VBox alignment="CENTER" spacing="6" style="-fx-padding: 0 0 28 0;">
+            <Label text="⬡ AUCTION" styleClass="nav-brand"
+                   style="-fx-font-size: 28px; -fx-letter-spacing: 0.06em;"/>
+            <Label text="Hệ thống đấu giá trực tuyến"
+                   styleClass="label-muted"
+                   style="-fx-font-size: 13px;"/>
         </VBox>
 
-        <!-- REGISTER FIELDS (ẩn mặc định) -->
-        <VBox fx:id="registerFields" spacing="12" visible="false" managed="false">
-            <VBox spacing="5">
-                <Label text="Tên đăng nhập"
-                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #424242;"/>
-                <TextField fx:id="txtRegUsername"
-                           promptText="Tối thiểu 3 ký tự"/>
+        <!-- Card -->
+        <VBox styleClass="login-card" spacing="0">
+
+            <!-- Tab switcher -->
+            <HBox style="-fx-background-color: #121212; -fx-background-radius: 6 6 0 0;
+                         -fx-border-color: #333333; -fx-border-width: 0 0 1 0;
+                         -fx-margin: 0 0 20 0;">
+                <Button fx:id="btnTabLogin"
+                        text="Đăng nhập"
+                        onAction="#switchToLogin"
+                        maxWidth="Infinity"
+                        prefHeight="44"
+                        HBox.hgrow="ALWAYS"
+                        styleClass="tab-btn-active"/>
+                <Button fx:id="btnTabRegister"
+                        text="Đăng ký"
+                        onAction="#switchToRegister"
+                        maxWidth="Infinity"
+                        prefHeight="44"
+                        HBox.hgrow="ALWAYS"
+                        styleClass="tab-btn-inactive"/>
+            </HBox>
+
+            <!-- Form area -->
+            <VBox spacing="20" style="-fx-padding: 28 0 0 0;">
+
+                <!-- LOGIN FIELDS -->
+                <VBox fx:id="loginFields" spacing="16">
+                    <VBox spacing="6">
+                        <Label text="TÊN ĐĂNG NHẬP" styleClass="field-label"/>
+                        <TextField fx:id="txtUsername" promptText="Nhập username"/>
+                    </VBox>
+                    <VBox spacing="6">
+                        <Label text="MẬT KHẨU" styleClass="field-label"/>
+                        <PasswordField fx:id="txtPassword" promptText="Nhập mật khẩu"/>
+                    </VBox>
+                </VBox>
+
+                <!-- REGISTER FIELDS (hidden by default) -->
+                <VBox fx:id="registerFields" spacing="16" visible="false" managed="false">
+                    <VBox spacing="6">
+                        <Label text="TÊN ĐĂNG NHẬP" styleClass="field-label"/>
+                        <TextField fx:id="txtRegUsername" promptText="Tối thiểu 3 ký tự"/>
+                    </VBox>
+                    <VBox spacing="6">
+                        <Label text="EMAIL" styleClass="field-label"/>
+                        <TextField fx:id="txtEmail" promptText="example@email.com"/>
+                    </VBox>
+                    <VBox spacing="6">
+                        <Label text="MẬT KHẨU" styleClass="field-label"/>
+                        <PasswordField fx:id="txtRegPassword" promptText="Tối thiểu 6 ký tự"/>
+                    </VBox>
+                    <VBox spacing="6">
+                        <Label text="VAI TRÒ" styleClass="field-label"/>
+                        <ComboBox fx:id="cmbRole" maxWidth="Infinity"/>
+                    </VBox>
+                </VBox>
+
+                <!-- Error message -->
+                <Label fx:id="lblError"
+                       text=""
+                       wrapText="true"
+                       visible="false"
+                       managed="false"
+                       styleClass="label-danger"
+                       style="-fx-font-size: 12px;"/>
+
+                <!-- Submit button -->
+                <Button fx:id="btnSubmit"
+                        text="ĐĂNG NHẬP"
+                        onAction="#handleSubmit"
+                        maxWidth="Infinity"
+                        prefHeight="48"
+                        styleClass="button, btn-primary"
+                        style="-fx-font-size: 14px; -fx-letter-spacing: 0.06em; -fx-background-radius: 500;"/>
+
             </VBox>
-            <VBox spacing="5">
-                <Label text="Email"
-                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #424242;"/>
-                <TextField fx:id="txtEmail"
-                           promptText="example@email.com"/>
-            </VBox>
-            <VBox spacing="5">
-                <Label text="Mật khẩu"
-                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #424242;"/>
-                <PasswordField fx:id="txtRegPassword"
-                               promptText="Tối thiểu 6 ký tự"/>
-            </VBox>
-            <VBox spacing="5">
-                <Label text="Vai trò"
-                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #424242;"/>
-                <ComboBox fx:id="cmbRole" maxWidth="Infinity"/>
-            </VBox>
+
         </VBox>
 
-        <!-- Error message -->
-        <Label fx:id="lblError"
-               text=""
-               wrapText="true"
-               visible="false"
-               managed="false"
-               style="-fx-text-fill: #C62828; -fx-font-size: 12px;"/>
-
-        <!-- Submit button -->
-        <Button fx:id="btnSubmit"
-                text="Đăng nhập"
-                onAction="#handleSubmit"
-                maxWidth="Infinity"
-                prefHeight="42"
-                style="-fx-background-color: #1565C0; -fx-text-fill: white;
-                       -fx-font-size: 14px; -fx-font-weight: bold;
-                       -fx-background-radius: 6; -fx-cursor: hand;"/>
-
     </VBox>
-
-</VBox>
+</StackPane>

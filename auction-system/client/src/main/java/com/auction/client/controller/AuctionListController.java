@@ -85,14 +85,18 @@ public class AuctionListController {
             return new SimpleStringProperty(seller != null ? seller.getUsername() : "—");
         });
 
+        // Dark-theme row highlighting
         tblAuctions.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(AuctionDto item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) setStyle("");
-                else if ("RUNNING".equals(item.getStatus())) setStyle("-fx-background-color:#E8F5E9;");
-                else if (item.isFinished()) setStyle("-fx-background-color:#F5F5F5;");
-                else setStyle("");
+                getStyleClass().removeAll("row-running", "row-finished");
+                if (!empty && item != null) {
+                    if ("RUNNING".equals(item.getStatus()))
+                        getStyleClass().add("row-running");
+                    else if (item.isFinished())
+                        getStyleClass().add("row-finished");
+                }
             }
         });
 
@@ -100,42 +104,34 @@ public class AuctionListController {
     }
 
     private void connectWebSocket() {
-        lblWsStatus.setText("○ Đang kết nối...");
-        lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#FB8C00;");
+        setWsStatus("○ Đang kết nối...", "ws-dot-pending");
 
-        // Đăng ký Global Observer vào EventBus
         eventBus.subscribeGlobal(event -> {
             updateAuctionRow(event);
-            lblWsStatus.setText("● Trực tiếp");
-            lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#43A047;");
+            setWsStatus("● Trực tiếp", "ws-dot-live");
         });
 
         ws.subscribeGlobal();
-        ws.subscribeToUserTopic(session.getUsername(), () -> {
-            Platform.runLater(() -> {
-                FxUtil.showError("Tài khoản của bạn đã bị khóa bởi Quản trị viên.");
-                ws.disconnect();
-                session.logout();
-                FxUtil.switchScene(lblUsername, "/fxml/login.fxml", "Đăng nhập");
-            });
-        });
         ws.connect();
 
-        // Kiểm tra trạng thái sau 2 giây
         Thread checker = new Thread(() -> {
             try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
             Platform.runLater(() -> {
-                if (ws.isConnected()) {
-                    lblWsStatus.setText("● Đã kết nối");
-                    lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#43A047;");
-                } else {
-                    lblWsStatus.setText("✕ Mất kết nối");
-                    lblWsStatus.setStyle("-fx-font-size:11px;-fx-text-fill:#E53935;");
-                }
+                if (ws.isConnected())
+                    setWsStatus("● Đã kết nối", "ws-dot-live");
+                else
+                    setWsStatus("✕ Mất kết nối", "ws-dot-off");
             });
         });
         checker.setDaemon(true);
         checker.start();
+    }
+
+    /** Update WebSocket status label using CSS classes instead of inline styles */
+    private void setWsStatus(String text, String cssClass) {
+        lblWsStatus.setText(text);
+        lblWsStatus.getStyleClass().removeAll("ws-dot-live", "ws-dot-pending", "ws-dot-off");
+        lblWsStatus.getStyleClass().add(cssClass);
     }
 
     private void updateAuctionRow(AuctionEvent event) {
@@ -293,11 +289,11 @@ public class AuctionListController {
     private String translateStatus(String status) {
         if (status == null) return "";
         return switch (status) {
-            case "OPEN"     -> "Sắp bắt đầu";
+            case "OPEN"     -> "○ Sắp bắt đầu";
             case "RUNNING"  -> "● Đang diễn ra";
-            case "FINISHED" -> "Đã kết thúc";
-            case "PAID"     -> "Đã thanh toán";
-            case "CANCELED" -> "Đã hủy";
+            case "FINISHED" -> "✓ Đã kết thúc";
+            case "PAID"     -> "✓ Đã thanh toán";
+            case "CANCELED" -> "✕ Đã hủy";
             default         -> status;
         };
     }
