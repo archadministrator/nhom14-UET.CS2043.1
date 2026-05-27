@@ -26,7 +26,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AutoBidService Tests")
@@ -39,12 +38,16 @@ class AutoBidServiceTest {
 
     @InjectMocks AutoBidService autoBidService;
 
+    private User seller;
     private User bidder;
     private User bidder2;
     private AuctionItem activeAuction;
 
     @BeforeEach
     void setUp() {
+        seller = User.builder().id(99L).username("seller01")
+                .email("s@test.com").role(Role.SELLER).balance(BigDecimal.ZERO).build();
+
         bidder = User.builder().id(1L).username("bidder01")
                 .email("b1@test.com").role(Role.BIDDER)
                 .balance(new BigDecimal("10000000")).build();
@@ -55,8 +58,7 @@ class AutoBidServiceTest {
 
         activeAuction = AuctionItem.builder()
                 .id(10L)
-                .seller(User.builder().id(99L).username("seller01").email("s@test.com")
-                        .role(Role.SELLER).balance(BigDecimal.ZERO).build())
+                .seller(seller)
                 .name("Tranh sơn mài")
                 .startPrice(new BigDecimal("2000000"))
                 .currentPrice(new BigDecimal("2000000"))
@@ -66,7 +68,9 @@ class AutoBidServiceTest {
                 .status(AuctionStatus.RUNNING)
                 .build();
 
-        lenient().when(bidService.getLock(anyLong())).thenReturn(new ReentrantLock());
+        // lenient: stub này chỉ cần trong test đi qua triggerAutoBids().
+        // Dùng lenient() để Mockito không báo UnnecessaryStubbing ở test không dùng tới.
+        lenient().when(bidService.getLock(anyLong())).thenReturn(new ReentrantLock(true));
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -92,6 +96,7 @@ class AutoBidServiceTest {
             given(configRepo.findByBidderAndAuctionItem(bidder, activeAuction))
                     .willReturn(Optional.empty());
             given(configRepo.save(any(AutoBidConfig.class))).willReturn(savedConfig);
+            // triggerAutoBids bên trong setupAutoBid: auctionService cần trả về fresh item
             given(configRepo.findActiveConfigsExcluding(any(), any()))
                     .willReturn(Collections.emptyList());
 
@@ -126,6 +131,8 @@ class AutoBidServiceTest {
 
             assertThat(existingConfig.getMaxAmount()).isEqualByComparingTo("6000000");
             assertThat(existingConfig.getIncrement()).isEqualByComparingTo("300000");
+            // Chỉ save một lần (upsert, không insert thêm)
+            then(configRepo).should(times(1)).save(existingConfig);
         }
 
         @Test
@@ -198,6 +205,7 @@ class AutoBidServiceTest {
             autoBidService.cancelAutoBid(10L, "bidder01");
 
             assertThat(config.isActive()).isFalse();
+            then(configRepo).should().save(config);
         }
 
         @Test
@@ -222,19 +230,33 @@ class AutoBidServiceTest {
     @DisplayName("triggerAutoBids()")
     class TriggerAutoBids {
 
+
         @Test
-        @DisplayName("Phiên không nhận bid → không kích hoạt")
+        @DisplayName("Phiên không nhận bid → không query config, không đặt giá")
         void trigger_auctionClosed_noAction() {
             activeAuction.setStatus(AuctionStatus.FINISHED);
 
             autoBidService.triggerAutoBids(activeAuction, bidder);
 
             then(configRepo).should(never()).findActiveConfigsExcluding(any(), any());
+            then(bidService).should(never()).doPlaceBid(any(), any(), any(), anyBoolean());
+        }
+
+        @Test
+        @DisplayName("Phiên hết giờ dù RUNNING → không kích hoạt")
+        void trigger_expiredAuction_noAction() {
+            activeAuction.setEndTime(LocalDateTime.now().minusSeconds(1));
+            // isAcceptingBids() trả false ngay ở guard đầu tiên → không vào lock, không gọi findById
+
+            autoBidService.triggerAutoBids(activeAuction, bidder);
+
+            then(bidService).should(never()).doPlaceBid(any(), any(), any(), anyBoolean());
         }
 
         @Test
         @DisplayName("Không có auto-bid config nào → không đặt giá")
         void trigger_noConfigs_noAction() {
+            given(auctionService.findById(10L)).willReturn(activeAuction);
             given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
                     .willReturn(Collections.emptyList());
 
@@ -244,18 +266,38 @@ class AutoBidServiceTest {
         }
 
         @Test
-        @DisplayName("Có config, nextBid trong ngưỡng → tự động đặt giá")
-        void trigger_validConfig_placesBid() {
+        @DisplayName("Có config hợp lệ → getLock() được gọi trước khi doPlaceBid()")
+        void trigger_validConfig_acquiresLockBeforeBid() {
             AutoBidConfig config = AutoBidConfig.builder()
                     .id(1L).bidder(bidder2).auctionItem(activeAuction)
                     .maxAmount(new BigDecimal("5000000"))
                     .increment(new BigDecimal("200000"))
                     .isActive(true).build();
 
-            // nextBid = 2M + 200K = 2.2M < maxAmount 5M → hợp lệ
+            given(auctionService.findById(10L)).willReturn(activeAuction);
             given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
                     .willReturn(List.of(config));
+
+            autoBidService.triggerAutoBids(activeAuction, bidder);
+
+            // getLock() phải được gọi với đúng auctionId
+            then(bidService).should().getLock(10L);
+            then(bidService).should().doPlaceBid(eq(10L), any(), any(), eq(true));
+        }
+
+        @Test
+        @DisplayName("Có config hợp lệ, nextBid trong ngưỡng → tự động đặt giá đúng amount")
+        void trigger_validConfig_placesCorrectBidAmount() {
+            AutoBidConfig config = AutoBidConfig.builder()
+                    .id(1L).bidder(bidder2).auctionItem(activeAuction)
+                    .maxAmount(new BigDecimal("5000000"))
+                    .increment(new BigDecimal("200000"))
+                    .isActive(true).build();
+
+            // currentPrice = 2M, increment = 200K → nextBid = 2.2M < maxAmount 5M
             given(auctionService.findById(10L)).willReturn(activeAuction);
+            given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
+                    .willReturn(List.of(config));
 
             autoBidService.triggerAutoBids(activeAuction, bidder);
 
@@ -271,10 +313,11 @@ class AutoBidServiceTest {
         void trigger_nextBidExceedsMax_deactivatesConfig() {
             AutoBidConfig config = AutoBidConfig.builder()
                     .id(1L).bidder(bidder2).auctionItem(activeAuction)
-                    .maxAmount(new BigDecimal("2050000")) // nextBid = 2.2M > 2.05M → vượt ngưỡng
+                    .maxAmount(new BigDecimal("2050000")) // 2M + 200K = 2.2M > 2.05M
                     .increment(new BigDecimal("200000"))
                     .isActive(true).build();
 
+            given(auctionService.findById(10L)).willReturn(activeAuction);
             given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
                     .willReturn(List.of(config));
             given(configRepo.save(config)).willReturn(config);
@@ -283,6 +326,126 @@ class AutoBidServiceTest {
 
             assertThat(config.isActive()).isFalse();
             then(bidService).should(never()).doPlaceBid(any(), any(), any(), anyBoolean());
+        }
+
+        @Test
+        @DisplayName("nextBid = maxAmount chính xác → chấp nhận và đặt giá")
+        void trigger_nextBidEqualsMax_placesBid() {
+            AutoBidConfig config = AutoBidConfig.builder()
+                    .id(1L).bidder(bidder2).auctionItem(activeAuction)
+                    .maxAmount(new BigDecimal("2200000")) // = currentPrice + increment
+                    .increment(new BigDecimal("200000"))
+                    .isActive(true).build();
+
+            given(auctionService.findById(10L)).willReturn(activeAuction);
+            given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
+                    .willReturn(List.of(config));
+
+            autoBidService.triggerAutoBids(activeAuction, bidder);
+
+            then(bidService).should().doPlaceBid(
+                    eq(10L),
+                    eq(new BigDecimal("2200000")),
+                    eq("bidder02"),
+                    eq(true));
+        }
+
+        @Test
+        @DisplayName("leader null → resolve từ bid history rồi loại ra khỏi trigger")
+        void trigger_nullLeader_resolvesFromHistory() {
+            Dto.UserResponse bidderDto = new Dto.UserResponse(
+                    1L, "bidder01", "bidder01@test.com",
+                    Role.BIDDER, new BigDecimal("10000000"), true, LocalDateTime.now());
+            Dto.BidResponse lastBid = new Dto.BidResponse(
+                    1L, 10L, "Tranh sơn mài", bidderDto,
+                    new BigDecimal("2000000"), false, LocalDateTime.now());
+
+            given(auctionService.findById(10L)).willReturn(activeAuction);
+            given(bidService.getBidHistory(10L)).willReturn(List.of(lastBid));
+            given(userService.findByUsername("bidder01")).willReturn(bidder);
+            given(configRepo.findActiveConfigsExcluding(eq(activeAuction), eq(bidder)))
+                    .willReturn(Collections.emptyList());
+
+            autoBidService.triggerAutoBids(activeAuction, null);
+
+            // Verify loại đúng leader
+            then(configRepo).should().findActiveConfigsExcluding(activeAuction, bidder);
+        }
+
+        @Test
+        @DisplayName("leader null, không có bid history → leader = null, query không loại ai")
+        void trigger_nullLeader_noBidHistory_queriesWithNullLeader() {
+            given(auctionService.findById(10L)).willReturn(activeAuction);
+            given(bidService.getBidHistory(10L)).willReturn(Collections.emptyList());
+            given(configRepo.findActiveConfigsExcluding(eq(activeAuction), isNull()))
+                    .willReturn(Collections.emptyList());
+
+            assertThatCode(() -> autoBidService.triggerAutoBids(activeAuction, null))
+                    .doesNotThrowAnyException();
+
+            then(configRepo).should().findActiveConfigsExcluding(activeAuction, null);
+        }
+
+        @Test
+        @DisplayName("FIFO: config đăng ký trước được ưu tiên (thứ tự từ repository)")
+        void trigger_multipleConfigs_usesFirstFromRepository() {
+            // Repository trả về theo createdAt ASC → configs.get(0) là người đăng ký trước
+            AutoBidConfig firstRegistered = AutoBidConfig.builder()
+                    .id(1L).bidder(bidder).auctionItem(activeAuction)
+                    .maxAmount(new BigDecimal("5000000"))
+                    .increment(new BigDecimal("200000"))
+                    .isActive(true).build();
+
+            AutoBidConfig laterRegistered = AutoBidConfig.builder()
+                    .id(2L).bidder(bidder2).auctionItem(activeAuction)
+                    .maxAmount(new BigDecimal("5000000"))
+                    .increment(new BigDecimal("200000"))
+                    .isActive(true).build();
+
+            User currentLeader = User.builder().id(50L).username("someone_else")
+                    .role(Role.BIDDER).balance(BigDecimal.ZERO).build();
+
+            given(auctionService.findById(10L)).willReturn(activeAuction);
+            // Repository đã sắp xếp theo createdAt ASC
+            given(configRepo.findActiveConfigsExcluding(activeAuction, currentLeader))
+                    .willReturn(List.of(firstRegistered, laterRegistered));
+
+            autoBidService.triggerAutoBids(activeAuction, currentLeader);
+
+            // Chỉ người đăng ký trước (firstRegistered) được kích hoạt trong lần này
+            then(bidService).should().doPlaceBid(
+                    eq(10L), any(), eq("bidder01"), eq(true));
+            then(bidService).should(never()).doPlaceBid(
+                    eq(10L), any(), eq("bidder02"), eq(true));
+        }
+
+        @Test
+        @DisplayName("doPlaceBid ném exception → lock vẫn được nhả (no deadlock)")
+        void trigger_bidServiceThrows_lockAlwaysReleased() {
+            AutoBidConfig config = AutoBidConfig.builder()
+                    .id(1L).bidder(bidder2).auctionItem(activeAuction)
+                    .maxAmount(new BigDecimal("5000000"))
+                    .increment(new BigDecimal("200000"))
+                    .isActive(true).build();
+
+            given(auctionService.findById(10L)).willReturn(activeAuction);
+            given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
+                    .willReturn(List.of(config));
+
+            ReentrantLock realLock = new ReentrantLock(true);
+            given(bidService.getLock(10L)).willReturn(realLock);
+            willThrow(new RuntimeException("DB lỗi"))
+                    .given(bidService).doPlaceBid(any(), any(), any(), anyBoolean());
+
+            // Exception từ doPlaceBid phải propagate ra
+            assertThatThrownBy(() -> autoBidService.triggerAutoBids(activeAuction, bidder))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("DB lỗi");
+
+            // Lock phải được nhả (không bị giữ lại) → tryLock() phải thành công ngay
+            assertThat(realLock.isLocked())
+                    .as("Lock phải được nhả trong finally dù doPlaceBid ném exception")
+                    .isFalse();
         }
     }
 }
