@@ -77,6 +77,9 @@ class BidServiceTest {
                 .build();
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // doPlaceBid — HAPPY PATH
+    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("doPlaceBid() — happy path")
     class DoPlaceBidSuccess {
@@ -158,6 +161,9 @@ class BidServiceTest {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // doPlaceBid — VALIDATION ERRORS
+    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("doPlaceBid() — validation errors")
     class DoPlaceBidValidation {
@@ -225,6 +231,9 @@ class BidServiceTest {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // ANTI-SNIPING
+    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("Anti-sniping extension")
     class AntiSniping {
@@ -272,7 +281,9 @@ class BidServiceTest {
         }
     }
 
-
+    // ─────────────────────────────────────────────────────────────────
+    // LOCKING — per-auction isolation
+    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("Per-auction locking")
     class LockingTests {
@@ -384,6 +395,9 @@ class BidServiceTest {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // QUERIES & BROADCAST
+    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("getBidHistory() & getMyBids()")
     class Queries {
