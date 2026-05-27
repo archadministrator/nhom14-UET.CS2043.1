@@ -8,6 +8,7 @@ import com.auction.model.User;
 import com.auction.model.enums.AuctionStatus;
 import com.auction.util.Dto;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +22,14 @@ public class AuctionService {
     private final AuctionItemRepository auctionRepo;
     private final BidRepository bidRepo;
     private final UserService userService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public AuctionService(AuctionItemRepository auctionRepo, BidRepository bidRepo, UserService userService) {
-        this.auctionRepo = auctionRepo;
-        this.bidRepo = bidRepo;
-        this.userService = userService;
+    public AuctionService(AuctionItemRepository auctionRepo, BidRepository bidRepo,
+                          UserService userService, SimpMessagingTemplate messagingTemplate) {
+        this.auctionRepo       = auctionRepo;
+        this.bidRepo           = bidRepo;
+        this.userService       = userService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -52,6 +56,13 @@ public class AuctionService {
 
         AuctionItem saved = auctionRepo.save(item);
         log.info("Auction tạo mới: [{}] '{}' bởi {}", saved.getId(), saved.getName(), sellerUsername);
+
+        // Broadcast trực tiếp — không qua BidService để tránh circular dependency
+        Dto.BidUpdateMessage msg = new Dto.BidUpdateMessage(
+                "AUCTION_CREATED", saved.getId(), saved.getCurrentPrice(),
+                sellerUsername, 0L, saved.getEndTime());
+        messagingTemplate.convertAndSend("/topic/auctions", msg);
+
         return toResponse(saved);
     }
 

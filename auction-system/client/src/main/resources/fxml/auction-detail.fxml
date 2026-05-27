@@ -58,7 +58,7 @@
             <VBox spacing="12" prefWidth="360" minWidth="320">
 
                 <!-- Product info card -->
-                <VBox spacing="10" styleClass="card">
+                <VBox spacing="6" styleClass="card">
                     <Label fx:id="lblProductName"
                            text=""
                            wrapText="true"
@@ -71,7 +71,7 @@
 
                     <Separator/>
 
-                    <GridPane hgap="10" vgap="10">
+                    <GridPane hgap="10" vgap="8">
                         <columnConstraints>
                             <ColumnConstraints prefWidth="140"/>
                             <ColumnConstraints prefWidth="180"/>
@@ -112,7 +112,7 @@
                 </VBox>
 
                 <!-- Live price card -->
-                <VBox alignment="CENTER" spacing="8" styleClass="card-live">
+                <VBox alignment="CENTER" spacing="4" styleClass="card-live">
                     <Label text="GIÁ HIỆN TẠI"
                            styleClass="label-muted"
                            style="-fx-letter-spacing: 0.1em; -fx-font-size: 11px;"/>
@@ -151,12 +151,12 @@
                     <Label text="AUTO-BID" styleClass="section-title"
                            style="-fx-font-size: 12px; -fx-letter-spacing: 0.08em;"/>
 
-                    <VBox spacing="6">
+                    <VBox spacing="4">
                         <Label text="GIÁ TỐI ĐA (₫)" styleClass="field-label"/>
                         <TextField fx:id="txtAutoMax" promptText="Nhập giá tối đa..."/>
                     </VBox>
 
-                    <HBox spacing="8">
+                    <HBox spacing="6">
                         <Button text="Bật Auto-Bid"
                                 onAction="#handleAutoBidOn"
                                 HBox.hgrow="ALWAYS"

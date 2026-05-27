@@ -2,6 +2,7 @@ package com.auction.service;
 
 import com.auction.dao.BidRepository;
 import com.auction.exception.AuctionClosedException;
+import com.auction.exception.InsufficientBalanceException;
 import com.auction.exception.InvalidBidException;
 import com.auction.model.AuctionItem;
 import com.auction.model.Bid;
@@ -45,21 +46,15 @@ public class BidService {
         this.messagingTemplate = messagingTemplate;
     }
 
-
     private ReentrantLock getLockForAuction(Long auctionId) {
         return auctionLocks.computeIfAbsent(auctionId, id -> new ReentrantLock(true));
     }
-    public Dto.BidResponse placeBid(Long auctionId, Dto.PlaceBidRequest req, String bidderUsername) {
-        ReentrantLock lock = getLockForAuction(auctionId);
-        lock.lock();
-        try {
-            return doPlaceBid(auctionId, req.amount(), bidderUsername, false);
-        } finally {
-            lock.unlock();
-        }
-    }
 
     @Transactional
+    public synchronized Dto.BidResponse placeBid(Long auctionId, Dto.PlaceBidRequest req, String bidderUsername) {
+        return doPlaceBid(auctionId, req.amount(), bidderUsername, false);
+    }
+
     Dto.BidResponse doPlaceBid(Long auctionId, BigDecimal amount,
                                String bidderUsername, boolean isAuto) {
         AuctionItem item = auctionService.findById(auctionId);
@@ -77,10 +72,14 @@ public class BidService {
                     "Giá đặt tối thiểu là %,.0f₫ (hiện tại %,.0f₫ + mức tăng %,.0f₫)",
                     minBid, item.getCurrentPrice(), item.getMinIncrement()));
 
+        // 1. Lưu thông tin người đang giữ giá cao nhất để hoàn tiền
         Optional<Bid> topBidOpt = bidRepo.findTopBidByAuction(item);
 
+        // 2. Thử trừ tiền người đặt giá mới (Nếu không đủ tiền sẽ văng ngoại lệ và Transaction sẽ rollback)
         userService.subtractBalance(bidderUsername, amount);
 
+        // 3. Nếu trừ tiền thành công, tiến hành cập nhật đấu giá
+        // Anti-sniping: bid trong 5 phút cuối → gia hạn thêm 5 phút
         LocalDateTime now = LocalDateTime.now();
         if (item.getEndTime().minusMinutes(5).isBefore(now)) {
             item.setEndTime(item.getEndTime().plusMinutes(5));
@@ -98,6 +97,7 @@ public class BidService {
 
         Bid savedBid = bidRepo.save(bid);
 
+        // 4. Hoàn tiền cho người bị vượt mặt (người giữ giá cũ)
         if (topBidOpt.isPresent()) {
             Bid oldTopBid = topBidOpt.get();
             userService.addBalance(oldTopBid.getBidder().getUsername(), oldTopBid.getAmount());
@@ -109,7 +109,6 @@ public class BidService {
                 savedBid.getId(), auctionId, bidderUsername, amount, isAuto);
 
         broadcastBidUpdate(item);
-
         autoBidService.triggerAutoBids(item, bidder);
 
         return Dto.BidResponse.from(savedBid);
@@ -157,6 +156,15 @@ public class BidService {
         Dto.BidUpdateMessage msg = new Dto.BidUpdateMessage(
                 "AUCTION_STARTED", item.getId(), item.getCurrentPrice(),
                 null, 0L, item.getEndTime());
+
+        messagingTemplate.convertAndSend("/topic/auctions", msg);
+    }
+
+    /** Broadcast khi seller vừa tạo phiên mới — client thêm vào list ngay */
+    public void broadcastAuctionCreated(AuctionItem item) {
+        Dto.BidUpdateMessage msg = new Dto.BidUpdateMessage(
+                "AUCTION_CREATED", item.getId(), item.getCurrentPrice(),
+                item.getSeller().getUsername(), 0L, item.getEndTime());
 
         messagingTemplate.convertAndSend("/topic/auctions", msg);
     }

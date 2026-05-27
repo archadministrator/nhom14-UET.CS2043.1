@@ -26,8 +26,8 @@ public class MainApp extends Application {
         primaryStage.setTitle("AuctionSystem");
         primaryStage.setScene(scene);
         primaryStage.setResizable(true);
-        primaryStage.setMinWidth(900);
-        primaryStage.setMinHeight(600);
+        primaryStage.setMinWidth(600);
+        primaryStage.setMinHeight(400);
 
         // Đặt vị trí và kích thước stage khớp vùng làm việc
         primaryStage.setX(screen.getMinX());

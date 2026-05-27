@@ -3,6 +3,7 @@ package com.auction.client.controller;
 import com.auction.client.model.ClientDto.*;
 import com.auction.client.realtime.AuctionEvent;
 import com.auction.client.realtime.AuctionEventBus;
+import com.auction.client.realtime.AuctionObserver;
 import com.auction.client.service.ApiService;
 import com.auction.client.service.SessionManager;
 import com.auction.client.service.WebSocketService;
@@ -29,7 +30,7 @@ public class AuctionListController {
     @FXML private Button btnTopUp, btnNewAuction;
     @FXML private TextField txtSearch;
 
-    // Sidebar filter buttons — cần inject để đổi active style
+
     @FXML private Button btnMenuAll, btnMenuRunning, btnMenuOpen, btnMenuFinished;
     @FXML private Button btnMenuMyBids, btnMenuMySales;
 
@@ -43,7 +44,10 @@ public class AuctionListController {
     private final WebSocketService ws      = WebSocketService.getInstance();
     private final AuctionEventBus  eventBus = AuctionEventBus.getInstance();
 
-    // Track tab hiện tại để handleRefresh biết cần reload gì
+
+    private AuctionObserver globalObserver;
+
+
     private Runnable activeFilter;
 
     private static final NumberFormat CURRENCY =
@@ -56,23 +60,7 @@ public class AuctionListController {
         setupNavBar();
         setupTable();
         connectWebSocket();
-        startPeriodicRefresh();
-        filterAll(); // tab mặc định
-    }
-
-    private void startPeriodicRefresh() {
-        Thread t = new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    Thread.sleep(30_000);
-                    Platform.runLater(() -> tblAuctions.refresh());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        });
-        t.setDaemon(true);
-        t.start();
+        filterAll(); 
     }
 
     private void setupNavBar() {
@@ -81,6 +69,8 @@ public class AuctionListController {
         lblBalance.setText("Số dư: " + CURRENCY.format((long) session.getBalance()) + "₫");
 
         boolean isSeller = session.isSeller() || session.isAdmin();
+        btnMenuMyBids.setVisible(!isSeller);
+        btnMenuMyBids.setManaged(!isSeller);
         btnMenuMySales.setVisible(isSeller);
         btnMenuMySales.setManaged(isSeller);
         btnNewAuction.setVisible(isSeller);
@@ -241,7 +231,7 @@ public class AuctionListController {
     @FXML public void handleSearch() {
         String keyword = txtSearch.getText().trim();
         if (keyword.isEmpty()) { filterAll(); return; }
-        // Tìm kiếm không thuộc filter nào → bỏ active hết
+        
         setActiveSidebarBtn(null);
         lblPageTitle.setText("Kết quả tìm kiếm: \"" + keyword + "\"");
         activeFilter = this::handleSearch;
@@ -254,7 +244,7 @@ public class AuctionListController {
         });
     }
 
-    /** Refresh lại đúng tab đang active, không nhảy về tab khác */
+
     @FXML public void handleRefresh() {
         if (activeFilter != null) activeFilter.run();
         lblStatus.setText("Đã cập nhật");
@@ -267,6 +257,7 @@ public class AuctionListController {
         if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
             AuctionDto selected = tblAuctions.getSelectionModel().getSelectedItem();
             if (selected == null) return;
+            cleanupObserver();
             FxUtil.switchSceneWithData(tblAuctions, "/fxml/auction-detail.fxml",
                     selected.getName(),
                     ctrl -> ((AuctionDetailController) ctrl).setAuction(selected));
@@ -274,6 +265,7 @@ public class AuctionListController {
     }
 
     @FXML public void handleCreateAuction() {
+        cleanupObserver();
         FxUtil.switchScene(tblAuctions, "/fxml/seller-dashboard.fxml", "Quản lý sản phẩm");
     }
 
@@ -302,6 +294,7 @@ public class AuctionListController {
     @FXML
     public void handleLogout() {
         if (FxUtil.showConfirm("Bạn có chắc muốn đăng xuất?")) {
+            cleanupObserver();
             ws.disconnect();
             session.logout();
             FxUtil.switchScene(lblUsername, "/fxml/login.fxml", "Đăng nhập");
@@ -312,12 +305,19 @@ public class AuctionListController {
 
     private void connectWebSocket() {
         setWsStatus("○ Đang kết nối...", "ws-dot-pending");
-        eventBus.subscribeGlobal(event -> {
-            updateAuctionRow(event);
+
+        globalObserver = event -> {
+            switch (event.getType()) {
+                case NEW_BID, AUCTION_STARTED, AUCTION_CLOSED -> updateAuctionRow(event);
+                case AUCTION_CREATED                          -> addNewAuctionRow(event);
+            }
             setWsStatus("● Trực tiếp", "ws-dot-live");
-        });
+        };
+
+        eventBus.subscribeGlobal(globalObserver);
         ws.subscribeGlobal();
         ws.connect();
+
         Thread checker = new Thread(() -> {
             try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
             Platform.runLater(() -> {
@@ -329,15 +329,63 @@ public class AuctionListController {
         checker.start();
     }
 
+    private void cleanupObserver() {
+        if (globalObserver != null) {
+            eventBus.unsubscribeGlobal(globalObserver);
+            globalObserver = null;
+        }
+    }
+
     private void setWsStatus(String text, String cssClass) {
         lblWsStatus.setText(text);
         lblWsStatus.getStyleClass().removeAll("ws-dot-live", "ws-dot-pending", "ws-dot-off");
         lblWsStatus.getStyleClass().add(cssClass);
     }
 
+  
+    private void addNewAuctionRow(AuctionEvent event) {
+        boolean exists = auctionData.stream()
+                .anyMatch(a -> a.getId() != null && a.getId() == event.getAuctionId());
+        if (exists) return;
+
+        Thread t = new Thread(() -> {
+            try {
+                AuctionDto dto = api.getAuction(event.getAuctionId());
+                Platform.runLater(() -> {
+                    // Kiểm tra filter hiện tại có cho phép phiên này không
+                    if (shouldShowInCurrentFilter(dto)) {
+                        auctionData.add(0, dto);
+                        lblCount.setText(auctionData.size() + " phiên");
+                    }
+                });
+            } catch (Exception e) {
+                System.err.println("[AuctionList] Cannot fetch new auction: " + e.getMessage());
+            }
+        });
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private boolean shouldShowInCurrentFilter(AuctionDto dto) {
+        if (activeFilter == null) return true;
+        String resolved = resolveStatus(dto);
+
+        String title = lblPageTitle.getText();
+        return switch (title) {
+            case "Tất cả phiên đấu giá"  -> true;
+            case "Đang diễn ra"           -> "RUNNING".equals(resolved);
+            case "Sắp diễn ra"            -> "OPEN".equals(resolved);
+            case "Đã kết thúc"            -> "FINISHED".equals(resolved)
+                    || "PAID".equals(resolved) || "CANCELED".equals(resolved);
+            case "Sản phẩm của tôi"       -> dto.getSeller() != null
+                    && dto.getSeller().getUsername().equals(session.getUsername());
+            default -> true;
+        };
+    }
+
     private void updateAuctionRow(AuctionEvent event) {
         for (AuctionDto a : auctionData) {
-            if (a.getId().equals(event.getAuctionId())) {
+            if (a.getId() != null && a.getId() == event.getAuctionId()) {
                 a.setCurrentPrice(event.getCurrentPrice());
                 a.setTotalBids(event.getTotalBids());
                 if (event.getEndTime() != null) a.setEndTime(event.getEndTime());

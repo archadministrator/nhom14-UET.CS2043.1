@@ -155,7 +155,8 @@ public class SellerDashboardController {
 
         Map<String, Object> data = new HashMap<>();
         data.put("name",         name);
-        data.put("description",  txtDesc.getText().trim());
+        String desc = txtDesc.getText().trim();
+        data.put("description",  desc.isEmpty() ? "Không có mô tả" : desc);
         data.put("startPrice",   startPrice);
         data.put("minIncrement", increment);
         data.put("startTime",    startTime.format(DTF_OUT));

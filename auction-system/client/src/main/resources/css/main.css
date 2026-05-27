@@ -125,7 +125,7 @@
     -fx-border-radius: 10;
     -fx-border-color: #282828;
     -fx-border-width: 1;
-    -fx-padding: 12;
+    -fx-padding: 20;
 }
 
 .card-elevated {
@@ -145,7 +145,7 @@
     -fx-border-radius: 10;
     -fx-border-color: #1DB954;
     -fx-border-width: 1;
-    -fx-padding: 12;
+    -fx-padding: 10;
 }
 
 /* Winner panel */
@@ -271,8 +271,8 @@
     -fx-border-width: 0 0 0 3;
     -fx-text-fill: #1DB954;
     -fx-font-weight: bold;
-    -fx-padding: 10 20;
-    -fx-alignment:CENTER_LEFT;
+    -fx-padding: 10 20 10 17;
+    -fx-alignment: CENTER_LEFT;
 }
 
 /* Small icon button */
@@ -323,6 +323,17 @@
     -fx-prompt-text-fill: #727272;
     -fx-padding: 10 14;
     -fx-font-size: 13px;
+}
+/* Inner scroll pane / content của TextArea giữ nền riêng — phải override */
+.text-area .content {
+    -fx-background-color: #333333;
+    -fx-background-radius: 6;
+}
+.text-area .scroll-pane {
+    -fx-background-color: transparent;
+}
+.text-area .scroll-pane .viewport {
+    -fx-background-color: transparent;
 }
 .text-field:focused,
 .password-field:focused,

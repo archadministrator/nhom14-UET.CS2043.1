@@ -237,7 +237,6 @@ public class AuctionDetailController implements AuctionObserver {
         if (event.getEndTime() != null
                 && !event.getEndTime().equals(currentAuction.getEndTime())) {
             currentAuction.setEndTime(event.getEndTime());
-            // Mark end time label red/urgent via style class swap
             lblEndTime.setText(event.getEndTime().format(DTF));
             lblEndTime.getStyleClass().removeAll("label", "label-danger");
             lblEndTime.getStyleClass().add("label-danger");
