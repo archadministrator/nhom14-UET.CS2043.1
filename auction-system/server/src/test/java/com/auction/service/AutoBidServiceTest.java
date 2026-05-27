@@ -66,6 +66,7 @@ class AutoBidServiceTest {
                 .status(AuctionStatus.RUNNING)
                 .build();
 
+        // Stub getLock để tránh NullPointerException khi AutoBidService gọi lock.lock()
         lenient().when(bidService.getLock(anyLong())).thenReturn(new ReentrantLock());
     }
 
@@ -235,6 +236,7 @@ class AutoBidServiceTest {
         @Test
         @DisplayName("Không có auto-bid config nào → không đặt giá")
         void trigger_noConfigs_noAction() {
+            given(auctionService.findById(10L)).willReturn(activeAuction);
             given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
                     .willReturn(Collections.emptyList());
 
@@ -277,6 +279,7 @@ class AutoBidServiceTest {
 
             given(configRepo.findActiveConfigsExcluding(activeAuction, bidder))
                     .willReturn(List.of(config));
+            given(auctionService.findById(10L)).willReturn(activeAuction);
             given(configRepo.save(config)).willReturn(config);
 
             autoBidService.triggerAutoBids(activeAuction, bidder);
