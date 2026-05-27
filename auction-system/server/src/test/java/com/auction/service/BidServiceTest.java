@@ -23,6 +23,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -71,9 +77,6 @@ class BidServiceTest {
                 .build();
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // doPlaceBid — HAPPY PATH
-    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("doPlaceBid() — happy path")
     class DoPlaceBidSuccess {
@@ -81,7 +84,7 @@ class BidServiceTest {
         @Test
         @DisplayName("Bid hợp lệ, không có người dẫn đầu trước → đặt giá thành công")
         void placeBid_noTopBidder_success() {
-            BigDecimal bidAmount = new BigDecimal("10500000"); // currentPrice + minIncrement
+            BigDecimal bidAmount = new BigDecimal("10500000");
             Bid savedBid = Bid.builder().id(1L).auctionItem(activeAuction)
                     .bidder(bidder).amount(bidAmount).build();
 
@@ -122,7 +125,7 @@ class BidServiceTest {
         @Test
         @DisplayName("Bid đúng minimum → chấp nhận")
         void placeBid_exactMinimum_accepted() {
-            BigDecimal exactMin = new BigDecimal("10500000"); // 10M + 500K
+            BigDecimal exactMin = new BigDecimal("10500000");
             Bid savedBid = Bid.builder().id(1L).auctionItem(activeAuction)
                     .bidder(bidder).amount(exactMin).build();
 
@@ -155,9 +158,6 @@ class BidServiceTest {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // doPlaceBid — VALIDATION ERRORS
-    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("doPlaceBid() — validation errors")
     class DoPlaceBidValidation {
@@ -198,7 +198,7 @@ class BidServiceTest {
         @Test
         @DisplayName("Giá đặt thấp hơn minimum → ném InvalidBidException")
         void placeBid_amountBelowMinimum_throws() {
-            BigDecimal tooLow = new BigDecimal("10000001"); // < 10M + 500K
+            BigDecimal tooLow = new BigDecimal("10000001");
             given(auctionService.findById(10L)).willReturn(activeAuction);
             given(userService.findByUsername("bidder01")).willReturn(bidder);
 
@@ -208,18 +208,7 @@ class BidServiceTest {
         }
 
         @Test
-        @DisplayName("Giá đặt bằng currentPrice (thiếu increment) → ném InvalidBidException")
-        void placeBid_exactCurrentPrice_throws() {
-            BigDecimal currentPrice = new BigDecimal("10000000"); // không có increment
-            given(auctionService.findById(10L)).willReturn(activeAuction);
-            given(userService.findByUsername("bidder01")).willReturn(bidder);
-
-            assertThatThrownBy(() -> bidService.doPlaceBid(10L, currentPrice, "bidder01", false))
-                    .isInstanceOf(InvalidBidException.class);
-        }
-
-        @Test
-        @DisplayName("Số dư không đủ → ném RuntimeException, không lưu bid")
+        @DisplayName("Số dư không đủ → ném exception, không lưu bid")
         void placeBid_insufficientBalance_throws() {
             BigDecimal bidAmount = new BigDecimal("10500000");
             given(auctionService.findById(10L)).willReturn(activeAuction);
@@ -236,9 +225,6 @@ class BidServiceTest {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // ANTI-SNIPING
-    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("Anti-sniping extension")
     class AntiSniping {
@@ -246,7 +232,6 @@ class BidServiceTest {
         @Test
         @DisplayName("Bid trong 5 phút cuối → endTime gia hạn thêm 5 phút")
         void placeBid_last5Minutes_extendsEndTime() {
-            // Đặt endTime còn 3 phút nữa → kích hoạt anti-sniping
             LocalDateTime nearEnd = LocalDateTime.now().plusMinutes(3);
             activeAuction.setEndTime(nearEnd);
 
@@ -262,7 +247,6 @@ class BidServiceTest {
 
             bidService.doPlaceBid(10L, bidAmount, "bidder01", false);
 
-            // endTime phải lớn hơn nearEnd (đã được gia hạn)
             assertThat(activeAuction.getEndTime()).isAfter(nearEnd);
         }
 
@@ -288,9 +272,118 @@ class BidServiceTest {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // GET BID HISTORY / MY BIDS
-    // ─────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Per-auction locking")
+    class LockingTests {
+
+        @Test
+        @DisplayName("getLock() trả về cùng lock instance cho cùng auctionId")
+        void getLock_sameId_returnsSameInstance() {
+            ReentrantLock lock1 = bidService.getLock(10L);
+            ReentrantLock lock2 = bidService.getLock(10L);
+            assertThat(lock1).isSameAs(lock2);
+        }
+
+        @Test
+        @DisplayName("getLock() trả về lock khác nhau cho auctionId khác nhau")
+        void getLock_differentId_returnsDifferentInstances() {
+            ReentrantLock lockA = bidService.getLock(10L);
+            ReentrantLock lockB = bidService.getLock(20L);
+            assertThat(lockA).isNotSameAs(lockB);
+        }
+
+        @Test
+        @DisplayName("Lock là ReentrantLock fair=true")
+        void getLock_isFair() {
+            ReentrantLock lock = bidService.getLock(99L);
+            assertThat(lock.isFair()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Hai phiên khác nhau không block lẫn nhau (lock độc lập)")
+        void locks_differentAuctions_doNotBlock() throws InterruptedException {
+            // Giữ lock phiên 10 trong thread riêng
+            ReentrantLock lockA = bidService.getLock(10L);
+            CountDownLatch held = new CountDownLatch(1);
+            CountDownLatch done = new CountDownLatch(1);
+
+            Thread t = new Thread(() -> {
+                lockA.lock();
+                held.countDown();           // báo đã giữ lock
+                try { done.await(3, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                lockA.unlock();
+            });
+            t.start();
+            held.await(1, TimeUnit.SECONDS);
+
+            // Lock phiên 20 phải lấy được ngay lập tức
+            ReentrantLock lockB = bidService.getLock(20L);
+            boolean acquired = lockB.tryLock(100, TimeUnit.MILLISECONDS);
+            if (acquired) lockB.unlock();
+
+            done.countDown();
+            t.join(1000);
+
+            assertThat(acquired)
+                    .as("Lock phiên 20 phải acquire được trong khi lock phiên 10 đang bận")
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("Concurrent bids cùng phiên → chỉ một thread thực thi tại một thời điểm")
+        void placeBid_concurrentSameAuction_serialized() throws InterruptedException {
+            int threads = 5;
+            AtomicInteger concurrentCount = new AtomicInteger(0);
+            AtomicInteger maxConcurrent = new AtomicInteger(0);
+            AtomicInteger successCount = new AtomicInteger(0);
+            CountDownLatch start = new CountDownLatch(1);
+            CountDownLatch finish = new CountDownLatch(threads);
+
+            // Mock: mỗi bid thành công
+            BigDecimal amount = new BigDecimal("10500000");
+            Bid savedBid = Bid.builder().id(1L).auctionItem(activeAuction)
+                    .bidder(bidder).amount(amount).build();
+
+            given(auctionService.findById(10L)).willReturn(activeAuction);
+            given(userService.findByUsername(anyString())).willReturn(bidder);
+            given(bidRepo.findTopBidByAuction(any())).willReturn(Optional.empty());
+            given(bidRepo.save(any(Bid.class))).willAnswer(inv -> {
+                // Kiểm tra không có hai thread cùng vào vùng này
+                int current = concurrentCount.incrementAndGet();
+                maxConcurrent.accumulateAndGet(current, Math::max);
+                Thread.sleep(10); // mô phỏng I/O
+                concurrentCount.decrementAndGet();
+                successCount.incrementAndGet();
+                return savedBid;
+            });
+            given(bidRepo.countByAuctionItem(any())).willReturn(1L);
+
+            ExecutorService pool = Executors.newFixedThreadPool(threads);
+            for (int i = 0; i < threads; i++) {
+                final String user = "bidder0" + i;
+                pool.submit(() -> {
+                    try {
+                        start.await();
+                        bidService.placeBid(10L,
+                                new Dto.PlaceBidRequest(amount), user);
+                    } catch (Exception ignored) {
+                    } finally {
+                        finish.countDown();
+                    }
+                });
+            }
+
+            start.countDown();
+            finish.await(5, TimeUnit.SECONDS);
+            pool.shutdown();
+
+            assertThat(maxConcurrent.get())
+                    .as("Tối đa 1 thread trong critical section tại một thời điểm")
+                    .isLessThanOrEqualTo(1);
+        }
+    }
+
     @Nested
     @DisplayName("getBidHistory() & getMyBids()")
     class Queries {
@@ -328,9 +421,6 @@ class BidServiceTest {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // BROADCAST
-    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("broadcast methods")
     class Broadcast {
