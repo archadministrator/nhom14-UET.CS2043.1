@@ -21,10 +21,12 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AutoBidService Tests")
@@ -63,6 +65,8 @@ class AutoBidServiceTest {
                 .endTime(LocalDateTime.now().plusHours(2))
                 .status(AuctionStatus.RUNNING)
                 .build();
+
+        lenient().when(bidService.getLock(anyLong())).thenReturn(new ReentrantLock());
     }
 
     // ─────────────────────────────────────────────────────────────────
