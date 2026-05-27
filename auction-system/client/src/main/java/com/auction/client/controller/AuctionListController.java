@@ -17,6 +17,7 @@ import javafx.scene.input.MouseButton;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -49,6 +50,26 @@ public class AuctionListController {
         setupTable();
         loadAuctions();
         connectWebSocket();
+        startPeriodicRefresh();
+    }
+
+    /**
+     * Tự động refresh bảng mỗi 30 giây để re-evaluate status theo thời gian thực.
+     * Dùng tblAuctions.refresh() — không gọi API lại, chỉ vẽ lại cells với resolveStatus mới.
+     */
+    private void startPeriodicRefresh() {
+        Thread t = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(30_000);
+                    Platform.runLater(() -> tblAuctions.refresh());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        t.setDaemon(true);
+        t.start();
     }
 
     private void setupNavBar() {
@@ -75,7 +96,7 @@ public class AuctionListController {
         colBids.setCellValueFactory(c ->
                 new SimpleStringProperty(String.valueOf(c.getValue().getTotalBids())));
         colStatus.setCellValueFactory(c ->
-                new SimpleStringProperty(translateStatus(c.getValue().getStatus())));
+                new SimpleStringProperty(translateStatus(resolveStatus(c.getValue()))));
         colEndTime.setCellValueFactory(c -> {
             if (c.getValue().getEndTime() == null) return new SimpleStringProperty("—");
             return new SimpleStringProperty(c.getValue().getEndTime().format(DTF));
@@ -85,16 +106,18 @@ public class AuctionListController {
             return new SimpleStringProperty(seller != null ? seller.getUsername() : "—");
         });
 
-        // Dark-theme row highlighting
+        // Dark-theme row highlighting — uses resolved (time-aware) status
         tblAuctions.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(AuctionDto item, boolean empty) {
                 super.updateItem(item, empty);
                 getStyleClass().removeAll("row-running", "row-finished");
                 if (!empty && item != null) {
-                    if ("RUNNING".equals(item.getStatus()))
+                    String resolved = resolveStatus(item);
+                    if ("RUNNING".equals(resolved))
                         getStyleClass().add("row-running");
-                    else if (item.isFinished())
+                    else if ("FINISHED".equals(resolved) || "PAID".equals(resolved)
+                            || "CANCELED".equals(resolved))
                         getStyleClass().add("row-finished");
                 }
             }
@@ -170,8 +193,11 @@ public class AuctionListController {
     @FXML public void filterRunning() {
         lblPageTitle.setText("Đang diễn ra");
         runAsync(() -> {
-            List<AuctionDto> list = api.getActiveAuctions();
-            Platform.runLater(() -> { auctionData.setAll(list); lblCount.setText(list.size() + " phiên"); });
+            List<AuctionDto> list = api.getAllAuctions();
+            List<AuctionDto> filtered = list.stream()
+                    .filter(a -> "RUNNING".equals(resolveStatus(a)))
+                    .toList();
+            Platform.runLater(() -> { auctionData.setAll(filtered); lblCount.setText(filtered.size() + " phiên"); });
         });
     }
 
@@ -180,7 +206,8 @@ public class AuctionListController {
         runAsync(() -> {
             List<AuctionDto> list = api.getAllAuctions();
             List<AuctionDto> filtered = list.stream()
-                    .filter(a -> "OPEN".equals(a.getStatus())).toList();
+                    .filter(a -> "OPEN".equals(resolveStatus(a)))
+                    .toList();
             Platform.runLater(() -> { auctionData.setAll(filtered); lblCount.setText(filtered.size() + " phiên"); });
         });
     }
@@ -190,7 +217,11 @@ public class AuctionListController {
         runAsync(() -> {
             List<AuctionDto> list = api.getAllAuctions();
             List<AuctionDto> filtered = list.stream()
-                    .filter(AuctionDto::isFinished).toList();
+                    .filter(a -> {
+                        String s = resolveStatus(a);
+                        return "FINISHED".equals(s) || "PAID".equals(s) || "CANCELED".equals(s);
+                    })
+                    .toList();
             Platform.runLater(() -> { auctionData.setAll(filtered); lblCount.setText(filtered.size() + " phiên"); });
         });
     }
@@ -284,6 +315,38 @@ public class AuctionListController {
         });
         t.setDaemon(true);
         t.start();
+    }
+
+    /**
+     * Tính lại status thực tế dựa trên thời gian hiện tại,
+     * không phụ thuộc vào giá trị server gửi về (có thể stale).
+     *
+     *  Server OPEN   + startTime đã qua + endTime chưa qua → RUNNING
+     *  Server OPEN   + startTime đã qua + endTime đã qua   → FINISHED
+     *  Server RUNNING + endTime đã qua                     → FINISHED
+     *  Còn lại giữ nguyên status server.
+     */
+    private static String resolveStatus(AuctionDto a) {
+        if (a == null) return "";
+        String serverStatus = a.getStatus() == null ? "" : a.getStatus();
+
+        // Trạng thái cuối — không cần tính lại
+        if ("FINISHED".equals(serverStatus) || "PAID".equals(serverStatus)
+                || "CANCELED".equals(serverStatus)) return serverStatus;
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if ("OPEN".equals(serverStatus) || "RUNNING".equals(serverStatus)) {
+            // Nếu endTime đã qua → coi là kết thúc
+            if (a.getEndTime() != null && now.isAfter(a.getEndTime())) return "FINISHED";
+
+            // Nếu OPEN nhưng startTime đã qua → coi là đang diễn ra
+            if ("OPEN".equals(serverStatus)
+                    && a.getStartTime() != null && now.isAfter(a.getStartTime()))
+                return "RUNNING";
+        }
+
+        return serverStatus;
     }
 
     private String translateStatus(String status) {

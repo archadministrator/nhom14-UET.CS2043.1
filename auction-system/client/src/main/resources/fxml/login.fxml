@@ -14,8 +14,6 @@
 <!-- Login screen — Spotify dark theme -->
 <StackPane xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.auction.client.controller.LoginController"
-           prefWidth="460"
-           prefHeight="600"
            styleClass="login-screen"
            stylesheets="@../css/main.css">
 

@@ -17,8 +17,6 @@
 
 <BorderPane xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.auction.client.controller.AuctionDetailController"
-            prefWidth="1100"
-            prefHeight="700"
             styleClass="app-shell"
             stylesheets="@../css/main.css">
 

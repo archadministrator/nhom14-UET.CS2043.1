@@ -101,7 +101,8 @@ public class AuctionDetailController implements AuctionObserver {
         updateLivePrice();
         updateStatusBadge();
 
-        boolean canBid = session.isBidder() && currentAuction.isRunning();
+        String resolvedStatus = resolveStatus(currentAuction);
+        boolean canBid = session.isBidder() && "RUNNING".equals(resolvedStatus);
         bidPanel.setVisible(canBid);
         bidPanel.setManaged(canBid);
 
@@ -111,7 +112,9 @@ public class AuctionDetailController implements AuctionObserver {
             txtBidAmount.setText(minNext.toPlainString());
         }
 
-        boolean finished = currentAuction.isFinished();
+        boolean finished = "FINISHED".equals(resolvedStatus)
+                || "PAID".equals(resolvedStatus)
+                || "CANCELED".equals(resolvedStatus);
         winnerPanel.setVisible(finished);
         winnerPanel.setManaged(finished);
         if (finished && currentAuction.getWinner() != null)
@@ -125,19 +128,27 @@ public class AuctionDetailController implements AuctionObserver {
         lblTotalBids.setText(currentAuction.getTotalBids() + " lượt đặt");
     }
 
+    /**
+     * Update the status badge using resolveStatus (time-aware) — no inline styles.
+     */
     private void updateStatusBadge() {
-        String status = currentAuction.getStatus();
-        String text = translateStatus(status);
-        String bg = switch (status == null ? "" : status) {
-            case "RUNNING"  -> "#43A047";
-            case "OPEN"     -> "#FB8C00";
-            case "FINISHED", "PAID" -> "#757575";
-            case "CANCELED" -> "#E53935";
-            default         -> "#9E9E9E";
-        };
+        String status = resolveStatus(currentAuction);
+        lblStatusBadge.getStyleClass().removeAll(
+                "badge-running", "badge-open", "badge-finished", "badge-canceled", "badge");
+        lblStatusBadge.getStyleClass().add("badge");
+
+        String text;
+        String cssClass;
+        switch (status == null ? "" : status) {
+            case "RUNNING"  -> { text = "● Đang diễn ra"; cssClass = "badge-running"; }
+            case "OPEN"     -> { text = "○ Sắp bắt đầu";  cssClass = "badge-open";    }
+            case "FINISHED" -> { text = "✓ Đã kết thúc";  cssClass = "badge-finished"; }
+            case "PAID"     -> { text = "✓ Đã thanh toán"; cssClass = "badge-finished"; }
+            case "CANCELED" -> { text = "✕ Đã hủy";       cssClass = "badge-canceled"; }
+            default         -> { text = status != null ? status : "—"; cssClass = "badge-finished"; }
+        }
         lblStatusBadge.setText(text);
-        lblStatusBadge.setStyle("-fx-font-size:12px;-fx-text-fill:white;-fx-padding:4 12;"
-                + "-fx-background-radius:12;-fx-background-color:" + bg + ";");
+        lblStatusBadge.getStyleClass().add(cssClass);
     }
 
     private void setupBidTable() {
@@ -165,7 +176,7 @@ public class AuctionDetailController implements AuctionObserver {
                         lblLeader.setText("Đang dẫn: " + bids.get(0).getBidder().getUsername());
                 });
             } catch (Exception e) {
-                Platform.runLater(() -> lblBidMsg.setText("Không tải được lịch sử: " + e.getMessage()));
+                Platform.runLater(() -> showBidMsg("Không tải được lịch sử: " + e.getMessage(), false));
             }
         });
         t.setDaemon(true);
@@ -174,7 +185,6 @@ public class AuctionDetailController implements AuctionObserver {
 
     @FXML public void refreshBidHistory() { loadBidHistory(); }
 
-    /** Ẩn hoàn toàn section lịch sử bid cho SELLER (không có quyền xem) */
     private void hideBidHistorySection() {
         tblBids.setVisible(false);
         tblBids.setManaged(false);
@@ -199,9 +209,7 @@ public class AuctionDetailController implements AuctionObserver {
     }
 
     private void subscribeRealtime() {
-        // Đăng ký Observer vào EventBus — không dùng callback trực tiếp
         eventBus.subscribe(currentAuction.getId(), this);
-        // Yêu cầu WebSocketService gửi STOMP SUBSCRIBE frame
         ws.subscribeToAuction(currentAuction.getId());
     }
 
@@ -210,54 +218,46 @@ public class AuctionDetailController implements AuctionObserver {
         ws.unsubscribeFromAuction(currentAuction.getId());
     }
 
-    /**
-     * Observer callback — đảm bảo chạy trên FX Thread bởi AuctionEventBus.
-     * Không gọi HTTP, không polling — chỉ cập nhật UI từ dữ liệu trong event.
-     */
     @Override
     public void onEvent(AuctionEvent event) {
-        // Bỏ qua event của phiên khác (phòng trường hợp global bus)
         if (event.getAuctionId() != currentAuction.getId()) return;
 
         switch (event.getType()) {
-            case NEW_BID -> handleNewBidEvent(event);
+            case NEW_BID        -> handleNewBidEvent(event);
             case AUCTION_CLOSED -> handleClosedEvent(event);
-            case AUCTION_STARTED -> { /* không cần xử lý trong detail view */ }
+            case AUCTION_STARTED -> { /* no-op in detail view */ }
         }
     }
 
     private void handleNewBidEvent(AuctionEvent event) {
-        // Cập nhật model
         currentAuction.setCurrentPrice(event.getCurrentPrice());
         currentAuction.setTotalBids(event.getTotalBids());
 
-        // Anti-sniping: endTime bị gia hạn
+        // Anti-sniping: end time extended
         if (event.getEndTime() != null
                 && !event.getEndTime().equals(currentAuction.getEndTime())) {
             currentAuction.setEndTime(event.getEndTime());
+            // Mark end time label red/urgent via style class swap
             lblEndTime.setText(event.getEndTime().format(DTF));
-            lblEndTime.setStyle("-fx-text-fill:#FF5252;-fx-font-weight:bold;");
+            lblEndTime.getStyleClass().removeAll("label", "label-danger");
+            lblEndTime.getStyleClass().add("label-danger");
         }
 
-        // Cập nhật labels
         updateLivePrice();
         if (event.getLeaderUsername() != null)
             lblLeader.setText("Đang dẫn: " + event.getLeaderUsername());
 
-        // Thêm điểm mới vào chart (không reload toàn bộ)
         int nextX = priceSeries.getData().size() + 1;
         priceSeries.getData().add(
                 new XYChart.Data<>(nextX, event.getCurrentPrice().doubleValue()));
 
-        // Thêm hàng mới vào bảng — tạo BidDto tạm từ event data, KHÔNG gọi HTTP
         BidDto liveRow = new BidDto();
         liveRow.setAuctionId(event.getAuctionId());
         liveRow.setAmount(event.getCurrentPrice());
-        liveRow.setBidTime(java.time.LocalDateTime.now());
+        liveRow.setBidTime(LocalDateTime.now());
         UserDto bidderDto = new UserDto();
         bidderDto.setUsername(event.getLeaderUsername() != null ? event.getLeaderUsername() : "—");
         liveRow.setBidder(bidderDto);
-        // Chèn đầu danh sách (bid mới nhất lên trên)
         bidData.add(0, liveRow);
     }
 
@@ -275,11 +275,13 @@ public class AuctionDetailController implements AuctionObserver {
                 ? event.getLeaderUsername() : "Không có người thắng");
         stopCountdown();
         lblCountdown.setText("Đã kết thúc");
+        lblCountdown.getStyleClass().removeAll("countdown-label", "countdown-urgent");
+        lblCountdown.getStyleClass().add("label-muted");
     }
 
     private void startCountdown() {
         stopCountdown();
-        if (!currentAuction.isRunning()) return;
+        if (!"RUNNING".equals(resolveStatus(currentAuction))) return;
 
         countdownTimer = new Timer(true);
         countdownTimer.scheduleAtFixedRate(new TimerTask() {
@@ -301,8 +303,11 @@ public class AuctionDetailController implements AuctionObserver {
                             ? String.format("Còn: %02d:%02d:%02d", h, m, s)
                             : String.format("Còn: %02d:%02d", m, s);
                     lblCountdown.setText(text);
-                    String color = remaining.toMinutes() < 2 ? "#FF5252" : "#FFD54F";
-                    lblCountdown.setStyle("-fx-font-size:14px;-fx-font-weight:bold;-fx-text-fill:" + color + ";");
+
+                    // Swap CSS class when urgent (<2 min)
+                    boolean urgent = remaining.toMinutes() < 2;
+                    lblCountdown.getStyleClass().removeAll("countdown-label", "countdown-urgent");
+                    lblCountdown.getStyleClass().add(urgent ? "countdown-urgent" : "countdown-label");
                 });
             }
         }, 0, 1000);
@@ -392,20 +397,29 @@ public class AuctionDetailController implements AuctionObserver {
         FxUtil.switchScene(lblAuctionName, "/fxml/auction-list.fxml", "Danh sách đấu giá");
     }
 
-    private void showBidMsg(String msg, boolean success) {
-        lblBidMsg.setText(msg);
-        lblBidMsg.setStyle("-fx-font-size:12px;-fx-text-fill:" + (success ? "#43A047" : "#E53935") + ";");
+    /**
+     * Tính lại status thực tế dựa trên thời gian hiện tại — giống AuctionListController.
+     */
+    private static String resolveStatus(AuctionDto a) {
+        if (a == null) return "";
+        String s = a.getStatus() == null ? "" : a.getStatus();
+        if ("FINISHED".equals(s) || "PAID".equals(s) || "CANCELED".equals(s)) return s;
+        LocalDateTime now = LocalDateTime.now();
+        if ("OPEN".equals(s) || "RUNNING".equals(s)) {
+            if (a.getEndTime() != null && now.isAfter(a.getEndTime())) return "FINISHED";
+            if ("OPEN".equals(s) && a.getStartTime() != null && now.isAfter(a.getStartTime()))
+                return "RUNNING";
+        }
+        return s;
     }
 
-    private String translateStatus(String s) {
-        if (s == null) return "";
-        return switch (s) {
-            case "OPEN"     -> "Sắp bắt đầu";
-            case "RUNNING"  -> "Đang diễn ra";
-            case "FINISHED" -> "Đã kết thúc";
-            case "PAID"     -> "Đã thanh toán";
-            case "CANCELED" -> "Đã hủy";
-            default         -> s;
-        };
+    /**
+     * Show bid message using CSS classes — avoids inline style strings.
+     * success → label-accent (green), failure → label-danger (red)
+     */
+    private void showBidMsg(String msg, boolean success) {
+        lblBidMsg.setText(msg);
+        lblBidMsg.getStyleClass().removeAll("label-accent", "label-danger", "label");
+        lblBidMsg.getStyleClass().add(success ? "label-accent" : "label-danger");
     }
 }

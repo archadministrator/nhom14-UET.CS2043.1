@@ -6,8 +6,6 @@
 
 <BorderPane xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.auction.client.controller.AdminDashboardController"
-            prefWidth="1100"
-            prefHeight="720"
             styleClass="app-shell"
             stylesheets="@../css/main.css">
 
