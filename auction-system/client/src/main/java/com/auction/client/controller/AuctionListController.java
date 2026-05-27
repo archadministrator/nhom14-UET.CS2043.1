@@ -26,8 +26,12 @@ public class AuctionListController {
 
     @FXML private Label  lblUsername, lblRole, lblBalance, lblWsStatus;
     @FXML private Label  lblPageTitle, lblCount, lblStatus;
-    @FXML private Button btnTopUp, btnMySales, btnNewAuction;
+    @FXML private Button btnTopUp, btnNewAuction;
     @FXML private TextField txtSearch;
+
+    // Sidebar filter buttons — cần inject để đổi active style
+    @FXML private Button btnMenuAll, btnMenuRunning, btnMenuOpen, btnMenuFinished;
+    @FXML private Button btnMenuMyBids, btnMenuMySales;
 
     @FXML private TableView<AuctionDto>          tblAuctions;
     @FXML private TableColumn<AuctionDto,String> colId, colName, colPrice;
@@ -39,6 +43,9 @@ public class AuctionListController {
     private final WebSocketService ws      = WebSocketService.getInstance();
     private final AuctionEventBus  eventBus = AuctionEventBus.getInstance();
 
+    // Track tab hiện tại để handleRefresh biết cần reload gì
+    private Runnable activeFilter;
+
     private static final NumberFormat CURRENCY =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
     private static final DateTimeFormatter DTF =
@@ -48,15 +55,11 @@ public class AuctionListController {
     public void initialize() {
         setupNavBar();
         setupTable();
-        loadAuctions();
         connectWebSocket();
         startPeriodicRefresh();
+        filterAll(); // tab mặc định
     }
 
-    /**
-     * Tự động refresh bảng mỗi 30 giây để re-evaluate status theo thời gian thực.
-     * Dùng tblAuctions.refresh() — không gọi API lại, chỉ vẽ lại cells với resolveStatus mới.
-     */
     private void startPeriodicRefresh() {
         Thread t = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -78,8 +81,8 @@ public class AuctionListController {
         lblBalance.setText("Số dư: " + CURRENCY.format((long) session.getBalance()) + "₫");
 
         boolean isSeller = session.isSeller() || session.isAdmin();
-        btnMySales.setVisible(isSeller);
-        btnMySales.setManaged(isSeller);
+        btnMenuMySales.setVisible(isSeller);
+        btnMenuMySales.setManaged(isSeller);
         btnNewAuction.setVisible(isSeller);
         btnNewAuction.setManaged(isSeller);
         btnTopUp.setVisible(session.isBidder());
@@ -106,7 +109,6 @@ public class AuctionListController {
             return new SimpleStringProperty(seller != null ? seller.getUsername() : "—");
         });
 
-        // Dark-theme row highlighting — uses resolved (time-aware) status
         tblAuctions.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(AuctionDto item, boolean empty) {
@@ -126,53 +128,27 @@ public class AuctionListController {
         tblAuctions.setItems(auctionData);
     }
 
-    private void connectWebSocket() {
-        setWsStatus("○ Đang kết nối...", "ws-dot-pending");
+    // ── Sidebar active state ─────────────────────────────────────────────────
 
-        eventBus.subscribeGlobal(event -> {
-            updateAuctionRow(event);
-            setWsStatus("● Trực tiếp", "ws-dot-live");
-        });
-
-        ws.subscribeGlobal();
-        ws.connect();
-
-        Thread checker = new Thread(() -> {
-            try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
-            Platform.runLater(() -> {
-                if (ws.isConnected())
-                    setWsStatus("● Đã kết nối", "ws-dot-live");
-                else
-                    setWsStatus("✕ Mất kết nối", "ws-dot-off");
-            });
-        });
-        checker.setDaemon(true);
-        checker.start();
+    private Button[] allSidebarBtns() {
+        return new Button[]{ btnMenuAll, btnMenuRunning, btnMenuOpen,
+                             btnMenuFinished, btnMenuMyBids, btnMenuMySales };
     }
 
-    /** Update WebSocket status label using CSS classes instead of inline styles */
-    private void setWsStatus(String text, String cssClass) {
-        lblWsStatus.setText(text);
-        lblWsStatus.getStyleClass().removeAll("ws-dot-live", "ws-dot-pending", "ws-dot-off");
-        lblWsStatus.getStyleClass().add(cssClass);
-    }
-
-    private void updateAuctionRow(AuctionEvent event) {
-        for (int i = 0; i < auctionData.size(); i++) {
-            AuctionDto a = auctionData.get(i);
-            if (a.getId().equals(event.getAuctionId())) {
-                a.setCurrentPrice(event.getCurrentPrice());
-                a.setTotalBids(event.getTotalBids());
-                if (event.getEndTime() != null) a.setEndTime(event.getEndTime());
-                if (event.getType() == AuctionEvent.Type.AUCTION_CLOSED)  a.setStatus("FINISHED");
-                if (event.getType() == AuctionEvent.Type.AUCTION_STARTED) a.setStatus("RUNNING");
-                break;
-            }
+    private void setActiveSidebarBtn(Button active) {
+        for (Button b : allSidebarBtns()) {
+            if (b == null) continue;
+            b.getStyleClass().removeAll("sidebar-btn-active", "sidebar-btn");
+            b.getStyleClass().add(b == active ? "sidebar-btn-active" : "sidebar-btn");
         }
-        tblAuctions.refresh();
     }
 
-    private void loadAuctions() {
+    // ── Filter methods ───────────────────────────────────────────────────────
+
+    @FXML public void filterAll() {
+        setActiveSidebarBtn(btnMenuAll);
+        lblPageTitle.setText("Tất cả phiên đấu giá");
+        activeFilter = this::filterAll;
         runAsync(() -> {
             List<AuctionDto> list = api.getAllAuctions();
             Platform.runLater(() -> {
@@ -182,83 +158,109 @@ public class AuctionListController {
         });
     }
 
-    @FXML public void filterAll() {
-        lblPageTitle.setText("Tất cả phiên đấu giá");
-        runAsync(() -> {
-            List<AuctionDto> list = api.getAllAuctions();
-            Platform.runLater(() -> { auctionData.setAll(list); lblCount.setText(list.size() + " phiên"); });
-        });
-    }
-
     @FXML public void filterRunning() {
+        setActiveSidebarBtn(btnMenuRunning);
         lblPageTitle.setText("Đang diễn ra");
+        activeFilter = this::filterRunning;
         runAsync(() -> {
             List<AuctionDto> list = api.getAllAuctions();
             List<AuctionDto> filtered = list.stream()
-                    .filter(a -> "RUNNING".equals(resolveStatus(a)))
-                    .toList();
-            Platform.runLater(() -> { auctionData.setAll(filtered); lblCount.setText(filtered.size() + " phiên"); });
+                    .filter(a -> "RUNNING".equals(resolveStatus(a))).toList();
+            Platform.runLater(() -> {
+                auctionData.setAll(filtered);
+                lblCount.setText(filtered.size() + " phiên");
+            });
         });
     }
 
     @FXML public void filterOpen() {
+        setActiveSidebarBtn(btnMenuOpen);
         lblPageTitle.setText("Sắp diễn ra");
+        activeFilter = this::filterOpen;
         runAsync(() -> {
             List<AuctionDto> list = api.getAllAuctions();
             List<AuctionDto> filtered = list.stream()
-                    .filter(a -> "OPEN".equals(resolveStatus(a)))
-                    .toList();
-            Platform.runLater(() -> { auctionData.setAll(filtered); lblCount.setText(filtered.size() + " phiên"); });
+                    .filter(a -> "OPEN".equals(resolveStatus(a))).toList();
+            Platform.runLater(() -> {
+                auctionData.setAll(filtered);
+                lblCount.setText(filtered.size() + " phiên");
+            });
         });
     }
 
     @FXML public void filterFinished() {
+        setActiveSidebarBtn(btnMenuFinished);
         lblPageTitle.setText("Đã kết thúc");
+        activeFilter = this::filterFinished;
         runAsync(() -> {
             List<AuctionDto> list = api.getAllAuctions();
             List<AuctionDto> filtered = list.stream()
                     .filter(a -> {
                         String s = resolveStatus(a);
                         return "FINISHED".equals(s) || "PAID".equals(s) || "CANCELED".equals(s);
-                    })
-                    .toList();
-            Platform.runLater(() -> { auctionData.setAll(filtered); lblCount.setText(filtered.size() + " phiên"); });
-        });
-    }
-
-    @FXML public void showMySales() {
-        lblPageTitle.setText("Sản phẩm của tôi");
-        runAsync(() -> {
-            List<AuctionDto> list = api.getMySales();
-            Platform.runLater(() -> { auctionData.setAll(list); lblCount.setText(list.size() + " phiên"); });
+                    }).toList();
+            Platform.runLater(() -> {
+                auctionData.setAll(filtered);
+                lblCount.setText(filtered.size() + " phiên");
+            });
         });
     }
 
     @FXML public void showMyBids() {
+        setActiveSidebarBtn(btnMenuMyBids);
         lblPageTitle.setText("Lịch sử bid của tôi");
+        activeFilter = this::showMyBids;
         runAsync(() -> {
             List<BidDto> bids = api.getMyBids();
             List<Long> ids = bids.stream().map(BidDto::getAuctionId).distinct().toList();
-            List<AuctionDto> auctions = ids.stream().map(id -> {
-                try { return api.getAuction(id); } catch (Exception e) { return null; }
-            }).filter(a -> a != null).toList();
-            Platform.runLater(() -> { auctionData.setAll(auctions); lblCount.setText(auctions.size() + " phiên"); });
+            List<AuctionDto> auctions = ids.stream()
+                    .map(id -> { try { return api.getAuction(id); } catch (Exception e) { return null; } })
+                    .filter(a -> a != null).toList();
+            Platform.runLater(() -> {
+                auctionData.setAll(auctions);
+                lblCount.setText(auctions.size() + " phiên");
+            });
         });
     }
+
+    @FXML public void showMySales() {
+        setActiveSidebarBtn(btnMenuMySales);
+        lblPageTitle.setText("Sản phẩm của tôi");
+        activeFilter = this::showMySales;
+        runAsync(() -> {
+            List<AuctionDto> list = api.getMySales();
+            Platform.runLater(() -> {
+                auctionData.setAll(list);
+                lblCount.setText(list.size() + " phiên");
+            });
+        });
+    }
+
+    // ── Toolbar ──────────────────────────────────────────────────────────────
 
     @FXML public void handleSearch() {
         String keyword = txtSearch.getText().trim();
         if (keyword.isEmpty()) { filterAll(); return; }
+        // Tìm kiếm không thuộc filter nào → bỏ active hết
+        setActiveSidebarBtn(null);
+        lblPageTitle.setText("Kết quả tìm kiếm: \"" + keyword + "\"");
+        activeFilter = this::handleSearch;
         runAsync(() -> {
             List<AuctionDto> list = api.searchAuctions(keyword);
-            Platform.runLater(() -> { auctionData.setAll(list); lblCount.setText(list.size() + " kết quả"); });
+            Platform.runLater(() -> {
+                auctionData.setAll(list);
+                lblCount.setText(list.size() + " kết quả");
+            });
         });
     }
 
+    /** Refresh lại đúng tab đang active, không nhảy về tab khác */
     @FXML public void handleRefresh() {
-        filterAll();
+        if (activeFilter != null) activeFilter.run();
         lblStatus.setText("Đã cập nhật");
     }
+
+    // ── Row double-click ─────────────────────────────────────────────────────
 
     @FXML
     public void handleRowDoubleClick(javafx.scene.input.MouseEvent e) {
@@ -271,10 +273,11 @@ public class AuctionListController {
         }
     }
 
-    @FXML
-    public void handleCreateAuction() {
+    @FXML public void handleCreateAuction() {
         FxUtil.switchScene(tblAuctions, "/fxml/seller-dashboard.fxml", "Quản lý sản phẩm");
     }
+
+    // ── Top nav ──────────────────────────────────────────────────────────────
 
     @FXML
     public void handleTopUp() {
@@ -305,48 +308,69 @@ public class AuctionListController {
         }
     }
 
+    // ── WebSocket ────────────────────────────────────────────────────────────
+
+    private void connectWebSocket() {
+        setWsStatus("○ Đang kết nối...", "ws-dot-pending");
+        eventBus.subscribeGlobal(event -> {
+            updateAuctionRow(event);
+            setWsStatus("● Trực tiếp", "ws-dot-live");
+        });
+        ws.subscribeGlobal();
+        ws.connect();
+        Thread checker = new Thread(() -> {
+            try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+            Platform.runLater(() -> {
+                if (ws.isConnected()) setWsStatus("● Đã kết nối", "ws-dot-live");
+                else                  setWsStatus("✕ Mất kết nối", "ws-dot-off");
+            });
+        });
+        checker.setDaemon(true);
+        checker.start();
+    }
+
+    private void setWsStatus(String text, String cssClass) {
+        lblWsStatus.setText(text);
+        lblWsStatus.getStyleClass().removeAll("ws-dot-live", "ws-dot-pending", "ws-dot-off");
+        lblWsStatus.getStyleClass().add(cssClass);
+    }
+
+    private void updateAuctionRow(AuctionEvent event) {
+        for (AuctionDto a : auctionData) {
+            if (a.getId().equals(event.getAuctionId())) {
+                a.setCurrentPrice(event.getCurrentPrice());
+                a.setTotalBids(event.getTotalBids());
+                if (event.getEndTime() != null) a.setEndTime(event.getEndTime());
+                if (event.getType() == AuctionEvent.Type.AUCTION_CLOSED)  a.setStatus("FINISHED");
+                if (event.getType() == AuctionEvent.Type.AUCTION_STARTED) a.setStatus("RUNNING");
+                break;
+            }
+        }
+        tblAuctions.refresh();
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
     private void runAsync(ThrowingRunnable task) {
         Thread t = new Thread(() -> {
-            try {
-                task.run();
-            } catch (Exception e) {
-                Platform.runLater(() -> FxUtil.showError(e.getMessage()));
-            }
+            try { task.run(); }
+            catch (Exception e) { Platform.runLater(() -> FxUtil.showError(e.getMessage())); }
         });
         t.setDaemon(true);
         t.start();
     }
 
-    /**
-     * Tính lại status thực tế dựa trên thời gian hiện tại,
-     * không phụ thuộc vào giá trị server gửi về (có thể stale).
-     *
-     *  Server OPEN   + startTime đã qua + endTime chưa qua → RUNNING
-     *  Server OPEN   + startTime đã qua + endTime đã qua   → FINISHED
-     *  Server RUNNING + endTime đã qua                     → FINISHED
-     *  Còn lại giữ nguyên status server.
-     */
     private static String resolveStatus(AuctionDto a) {
         if (a == null) return "";
-        String serverStatus = a.getStatus() == null ? "" : a.getStatus();
-
-        // Trạng thái cuối — không cần tính lại
-        if ("FINISHED".equals(serverStatus) || "PAID".equals(serverStatus)
-                || "CANCELED".equals(serverStatus)) return serverStatus;
-
+        String s = a.getStatus() == null ? "" : a.getStatus();
+        if ("FINISHED".equals(s) || "PAID".equals(s) || "CANCELED".equals(s)) return s;
         LocalDateTime now = LocalDateTime.now();
-
-        if ("OPEN".equals(serverStatus) || "RUNNING".equals(serverStatus)) {
-            // Nếu endTime đã qua → coi là kết thúc
+        if ("OPEN".equals(s) || "RUNNING".equals(s)) {
             if (a.getEndTime() != null && now.isAfter(a.getEndTime())) return "FINISHED";
-
-            // Nếu OPEN nhưng startTime đã qua → coi là đang diễn ra
-            if ("OPEN".equals(serverStatus)
-                    && a.getStartTime() != null && now.isAfter(a.getStartTime()))
+            if ("OPEN".equals(s) && a.getStartTime() != null && now.isAfter(a.getStartTime()))
                 return "RUNNING";
         }
-
-        return serverStatus;
+        return s;
     }
 
     private String translateStatus(String status) {

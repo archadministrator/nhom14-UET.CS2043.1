@@ -125,7 +125,7 @@
     -fx-border-radius: 10;
     -fx-border-color: #282828;
     -fx-border-width: 1;
-    -fx-padding: 20;
+    -fx-padding: 12;
 }
 
 .card-elevated {
@@ -145,7 +145,7 @@
     -fx-border-radius: 10;
     -fx-border-color: #1DB954;
     -fx-border-width: 1;
-    -fx-padding: 20;
+    -fx-padding: 12;
 }
 
 /* Winner panel */
@@ -271,7 +271,8 @@
     -fx-border-width: 0 0 0 3;
     -fx-text-fill: #1DB954;
     -fx-font-weight: bold;
-    -fx-padding: 10 20 10 17;
+    -fx-padding: 10 20;
+    -fx-alignment:CENTER_LEFT;
 }
 
 /* Small icon button */
@@ -396,12 +397,21 @@
     -fx-text-fill: #B3B3B3;
     -fx-font-size: 11px;
     -fx-letter-spacing: 0.08em;
+    -fx-alignment: CENTER;
+}
+.table-cell {
+    -fx-alignment: CENTER;
+    -fx-padding: 0 10;
+}
+/* Cột tên sản phẩm căn trái cho dễ đọc */
+.table-cell:first-child {
+    -fx-alignment: CENTER;
 }
 .table-row-cell {
     -fx-border-color: transparent transparent #282828 transparent;
     -fx-border-width: 0 0 1 0;
     -fx-background-color: transparent;
-    -fx-cell-size: 42px;
+    -fx-cell-size: 44px;
 }
 .table-row-cell .text { -fx-fill: #FFFFFF; }
 .table-row-cell:selected {
@@ -488,7 +498,7 @@
 
 /* Live price */
 .price-big {
-    -fx-font-size: 32px;
+    -fx-font-size: 26px;
     -fx-font-weight: bold;
     -fx-text-fill: #1DB954;
     -fx-letter-spacing: -0.02em;

@@ -58,7 +58,7 @@
             <VBox spacing="12" prefWidth="360" minWidth="320">
 
                 <!-- Product info card -->
-                <VBox spacing="12" styleClass="card">
+                <VBox spacing="10" styleClass="card">
                     <Label fx:id="lblProductName"
                            text=""
                            wrapText="true"
@@ -129,7 +129,7 @@
                 </VBox>
 
                 <!-- Bid panel (BIDDER + RUNNING only) -->
-                <VBox fx:id="bidPanel" spacing="14" styleClass="card">
+                <VBox fx:id="bidPanel" spacing="6" styleClass="card">
                     <Label text="ĐẶT GIÁ" styleClass="section-title"
                            style="-fx-letter-spacing: 0.06em;"/>
 
@@ -142,7 +142,7 @@
                             text="ĐẶT GIÁ NGAY"
                             onAction="#handlePlaceBid"
                             maxWidth="Infinity"
-                            prefHeight="44"
+                            prefHeight="30"
                             styleClass="button, btn-primary"
                             style="-fx-font-size: 14px; -fx-letter-spacing: 0.04em;"/>
 
@@ -197,7 +197,7 @@
             <VBox spacing="12" HBox.hgrow="ALWAYS">
 
                 <!-- Price chart -->
-                <VBox prefHeight="240" styleClass="card">
+                <VBox prefHeight="180" styleClass="card">
                     <HBox alignment="CENTER_LEFT" style="-fx-padding: 0 0 10 0;">
                         <Label text="LỊCH SỬ GIÁ"
                                styleClass="sidebar-section-label"

@@ -18,28 +18,16 @@
 
     <!-- ── TOP NAV ──────────────────────────────────────── -->
     <top>
-        <HBox alignment="CENTER_LEFT"
-              spacing="16"
-              styleClass="top-nav">
-
+        <HBox alignment="CENTER_LEFT" spacing="16" styleClass="top-nav">
             <Label text="⬡ AUCTION" styleClass="nav-brand"/>
-
             <Pane HBox.hgrow="ALWAYS"/>
-
             <Label fx:id="lblRole" styleClass="role-badge"/>
-
             <Label fx:id="lblUsername" styleClass="username-label"/>
-
             <Label fx:id="lblBalance" styleClass="balance-label"/>
-
-            <Button fx:id="btnTopUp"
-                    text="Nạp tiền"
-                    onAction="#handleTopUp"
+            <Button fx:id="btnTopUp" text="Nạp tiền" onAction="#handleTopUp"
                     styleClass="button, btn-primary"
                     style="-fx-padding: 8 18; -fx-font-size: 12px;"/>
-
-            <Button text="Đăng xuất"
-                    onAction="#handleLogout"
+            <Button text="Đăng xuất" onAction="#handleLogout"
                     styleClass="button, btn-secondary"
                     style="-fx-padding: 8 18; -fx-font-size: 12px;"/>
         </HBox>
@@ -48,131 +36,92 @@
     <!-- ── LEFT SIDEBAR ─────────────────────────────────── -->
     <left>
         <VBox styleClass="sidebar">
-
             <Label text="KHÁM PHÁ" styleClass="sidebar-section-label"/>
-
-            <Button fx:id="btnMenuAll"
-                    text="⊞  Tất cả phiên"
-                    onAction="#filterAll"
-                    maxWidth="Infinity"
+            <Button fx:id="btnMenuAll" text="⊞  Tất cả phiên"
+                    onAction="#filterAll" maxWidth="Infinity"
                     styleClass="sidebar-btn-active"/>
-
-            <Button text="● Đang diễn ra"
-                    onAction="#filterRunning"
-                    maxWidth="Infinity"
+            <Button fx:id="btnMenuRunning" text="● Đang diễn ra"
+                    onAction="#filterRunning" maxWidth="Infinity"
                     styleClass="sidebar-btn"/>
-
-            <Button text="○  Sắp diễn ra"
-                    onAction="#filterOpen"
-                    maxWidth="Infinity"
+            <Button fx:id="btnMenuOpen" text="○  Sắp diễn ra"
+                    onAction="#filterOpen" maxWidth="Infinity"
                     styleClass="sidebar-btn"/>
-
-            <Button text="✓  Đã kết thúc"
-                    onAction="#filterFinished"
-                    maxWidth="Infinity"
+            <Button fx:id="btnMenuFinished" text="✓  Đã kết thúc"
+                    onAction="#filterFinished" maxWidth="Infinity"
                     styleClass="sidebar-btn"/>
 
             <Separator style="-fx-padding: 8 14;"/>
 
             <Label text="CỦA TÔI" styleClass="sidebar-section-label"/>
-
-            <Button text="♡  Lịch sử bid"
-                    onAction="#showMyBids"
-                    maxWidth="Infinity"
+            <Button fx:id="btnMenuMyBids" text="♡  Lịch sử bid"
+                    onAction="#showMyBids" maxWidth="Infinity"
                     styleClass="sidebar-btn"/>
-
-            <Button fx:id="btnMySales"
-                    text="□  Sản phẩm của tôi"
-                    onAction="#showMySales"
-                    maxWidth="Infinity"
-                    visible="false"
-                    managed="false"
+            <Button fx:id="btnMenuMySales" text="□  Sản phẩm của tôi"
+                    onAction="#showMySales" maxWidth="Infinity"
+                    visible="false" managed="false"
                     styleClass="sidebar-btn"/>
 
             <Pane VBox.vgrow="ALWAYS"/>
 
-            <Button fx:id="btnNewAuction"
-                    text="＋  Tạo phiên mới"
-                    onAction="#handleCreateAuction"
-                    maxWidth="Infinity"
-                    visible="false"
-                    managed="false"
+            <Button fx:id="btnNewAuction" text="＋  Tạo phiên mới"
+                    onAction="#handleCreateAuction" maxWidth="Infinity"
+                    visible="false" managed="false"
                     styleClass="button, btn-primary"
                     style="-fx-background-radius: 6; -fx-padding: 10 20;
-                           -fx-alignment: CENTER_LEFT; -fx-font-size: 13px;
-                           -fx-margin: 0 12;"/>
-
+                           -fx-alignment: CENTER_LEFT; -fx-font-size: 13px;"/>
         </VBox>
     </left>
 
     <!-- ── CENTER ───────────────────────────────────────── -->
     <center>
         <VBox>
-
             <!-- Toolbar -->
-            <HBox alignment="CENTER_LEFT"
-                  spacing="12"
-                  styleClass="toolbar">
-
-                <Label fx:id="lblPageTitle"
-                       text="Tất cả phiên đấu giá"
+            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="toolbar">
+                <Label fx:id="lblPageTitle" text="Tất cả phiên đấu giá"
                        styleClass="page-title"/>
-
                 <Pane HBox.hgrow="ALWAYS"/>
-
-                <TextField fx:id="txtSearch"
-                           promptText="Tìm kiếm sản phẩm..."
+                <TextField fx:id="txtSearch" promptText="Tìm kiếm sản phẩm..."
                            prefWidth="240"
                            style="-fx-background-radius: 500; -fx-border-radius: 500; -fx-padding: 8 16;"/>
-
-                <Button text="Tìm"
-                        onAction="#handleSearch"
+                <Button text="Tìm" onAction="#handleSearch"
                         styleClass="button, btn-primary"
                         style="-fx-padding: 8 18; -fx-font-size: 12px;"/>
-
-                <Button text="↻"
-                        onAction="#handleRefresh"
+                <Button text="↻" onAction="#handleRefresh"
                         styleClass="btn-icon"
                         style="-fx-font-size: 18px;"/>
             </HBox>
 
-            <!-- Table -->
+            <!-- Table — CONSTRAINED_RESIZE_POLICY trải đều các cột lấp đầy chiều ngang -->
             <TableView fx:id="tblAuctions"
                        VBox.vgrow="ALWAYS"
                        onMouseClicked="#handleRowDoubleClick"
                        style="-fx-background-color: #121212; -fx-border-color: transparent;">
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                </columnResizePolicy>
                 <columns>
-                    <TableColumn fx:id="colId"      text="ID"           prefWidth="55"/>
-                    <TableColumn fx:id="colName"    text="SẢN PHẨM"     prefWidth="300"/>
-                    <TableColumn fx:id="colPrice"   text="GIÁ HIỆN TẠI" prefWidth="150"/>
-                    <TableColumn fx:id="colBids"    text="BID"          prefWidth="70"/>
-                    <TableColumn fx:id="colStatus"  text="TRẠNG THÁI"   prefWidth="140"/>
-                    <TableColumn fx:id="colEndTime" text="KẾT THÚC"     prefWidth="140"/>
-                    <TableColumn fx:id="colSeller"  text="NGƯỜI BÁN"    prefWidth="110"/>
+                    <TableColumn fx:id="colId"      text="ID"           minWidth="50"  maxWidth="65"/>
+                    <TableColumn fx:id="colName"    text="SẢN PHẨM"     minWidth="220"
+                                 style="-fx-alignment: CENTER-LEFT;"/>
+                    <TableColumn fx:id="colPrice"   text="GIÁ HIỆN TẠI" minWidth="130" maxWidth="190"/>
+                    <TableColumn fx:id="colBids"    text="BID"          minWidth="55"  maxWidth="75"/>
+                    <TableColumn fx:id="colStatus"  text="TRẠNG THÁI"   minWidth="140" maxWidth="175"/>
+                    <TableColumn fx:id="colEndTime" text="KẾT THÚC"     minWidth="115" maxWidth="155"/>
+                    <TableColumn fx:id="colSeller"  text="NGƯỜI BÁN"    minWidth="100" maxWidth="155"/>
                 </columns>
                 <placeholder>
-                    <Label text="Không có phiên nào"
-                           styleClass="label-muted"
+                    <Label text="Không có phiên nào" styleClass="label-muted"
                            style="-fx-font-size: 14px;"/>
                 </placeholder>
             </TableView>
 
             <!-- Status bar -->
-            <HBox alignment="CENTER_LEFT"
-                  spacing="16"
-                  styleClass="status-bar">
-                <Label fx:id="lblCount"
-                       text="0 phiên"
-                       styleClass="label-muted"/>
-                <Label fx:id="lblStatus"
-                       text=""
-                       styleClass="label-accent"/>
+            <HBox alignment="CENTER_LEFT" spacing="16" styleClass="status-bar">
+                <Label fx:id="lblCount" text="0 phiên" styleClass="label-muted"/>
+                <Label fx:id="lblStatus" text="" styleClass="label-accent"/>
                 <Pane HBox.hgrow="ALWAYS"/>
-                <Label fx:id="lblWsStatus"
-                       text="○ Đang kết nối..."
-                       styleClass="ws-dot-pending"/>
+                <Label fx:id="lblWsStatus" text="○ Đang kết nối..." styleClass="ws-dot-pending"/>
             </HBox>
-
         </VBox>
     </center>
 
