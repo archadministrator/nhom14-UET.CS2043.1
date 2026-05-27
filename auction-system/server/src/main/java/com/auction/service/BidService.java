@@ -150,6 +150,8 @@ public class BidService {
                 winner, totalBids, item.getEndTime());
 
         messagingTemplate.convertAndSend("/topic/auction/" + item.getId(), msg);
+        // Broadcast lên global topic để AuctionListController cập nhật trạng thái ngay
+        messagingTemplate.convertAndSend("/topic/auctions", msg);
     }
 
     public void broadcastAuctionStarted(AuctionItem item) {

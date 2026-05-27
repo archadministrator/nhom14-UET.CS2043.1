@@ -30,7 +30,7 @@ public class AuctionListController {
     @FXML private Button btnTopUp, btnNewAuction;
     @FXML private TextField txtSearch;
 
-
+    // Sidebar filter buttons — cần inject để đổi active style
     @FXML private Button btnMenuAll, btnMenuRunning, btnMenuOpen, btnMenuFinished;
     @FXML private Button btnMenuMyBids, btnMenuMySales;
 
@@ -44,10 +44,10 @@ public class AuctionListController {
     private final WebSocketService ws      = WebSocketService.getInstance();
     private final AuctionEventBus  eventBus = AuctionEventBus.getInstance();
 
-
+    // Giữ reference để unsubscribe khi rời màn hình — tránh leak
     private AuctionObserver globalObserver;
 
-
+    // Track tab hiện tại để handleRefresh biết cần reload gì
     private Runnable activeFilter;
 
     private static final NumberFormat CURRENCY =
@@ -60,7 +60,7 @@ public class AuctionListController {
         setupNavBar();
         setupTable();
         connectWebSocket();
-        filterAll(); 
+        filterAll(); // tab mặc định
     }
 
     private void setupNavBar() {
@@ -69,8 +69,6 @@ public class AuctionListController {
         lblBalance.setText("Số dư: " + CURRENCY.format((long) session.getBalance()) + "₫");
 
         boolean isSeller = session.isSeller() || session.isAdmin();
-        btnMenuMyBids.setVisible(!isSeller);
-        btnMenuMyBids.setManaged(!isSeller);
         btnMenuMySales.setVisible(isSeller);
         btnMenuMySales.setManaged(isSeller);
         btnNewAuction.setVisible(isSeller);
@@ -231,7 +229,7 @@ public class AuctionListController {
     @FXML public void handleSearch() {
         String keyword = txtSearch.getText().trim();
         if (keyword.isEmpty()) { filterAll(); return; }
-        
+        // Tìm kiếm không thuộc filter nào → bỏ active hết
         setActiveSidebarBtn(null);
         lblPageTitle.setText("Kết quả tìm kiếm: \"" + keyword + "\"");
         activeFilter = this::handleSearch;
@@ -244,7 +242,7 @@ public class AuctionListController {
         });
     }
 
-
+    /** Refresh lại đúng tab đang active, không nhảy về tab khác */
     @FXML public void handleRefresh() {
         if (activeFilter != null) activeFilter.run();
         lblStatus.setText("Đã cập nhật");
@@ -308,7 +306,8 @@ public class AuctionListController {
 
         globalObserver = event -> {
             switch (event.getType()) {
-                case NEW_BID, AUCTION_STARTED, AUCTION_CLOSED -> updateAuctionRow(event);
+                case NEW_BID, AUCTION_STARTED, AUCTION_CLOSED,
+                     AUCTION_CANCELED                         -> updateAuctionRow(event);
                 case AUCTION_CREATED                          -> addNewAuctionRow(event);
             }
             setWsStatus("● Trực tiếp", "ws-dot-live");
@@ -342,7 +341,10 @@ public class AuctionListController {
         lblWsStatus.getStyleClass().add(cssClass);
     }
 
-  
+    /**
+     * Phiên mới vừa được seller tạo → fetch đầy đủ từ API rồi thêm vào đầu list.
+     * Chạy trên FX thread (đảm bảo bởi EventBus.publish).
+     */
     private void addNewAuctionRow(AuctionEvent event) {
         boolean exists = auctionData.stream()
                 .anyMatch(a -> a.getId() != null && a.getId() == event.getAuctionId());
@@ -366,10 +368,12 @@ public class AuctionListController {
         t.start();
     }
 
+    /** Trả về true nếu phiên dto phù hợp với filter tab hiện tại */
     private boolean shouldShowInCurrentFilter(AuctionDto dto) {
         if (activeFilter == null) return true;
         String resolved = resolveStatus(dto);
-
+        // So sánh bằng method reference identity không đáng tin cậy —
+        // dùng lblPageTitle để nhận biết tab đang active
         String title = lblPageTitle.getText();
         return switch (title) {
             case "Tất cả phiên đấu giá"  -> true;
@@ -379,21 +383,29 @@ public class AuctionListController {
                     || "PAID".equals(resolved) || "CANCELED".equals(resolved);
             case "Sản phẩm của tôi"       -> dto.getSeller() != null
                     && dto.getSeller().getUsername().equals(session.getUsername());
-            default -> true;
+            default -> true; // tìm kiếm hoặc lịch sử bid → không push realtime
         };
     }
 
     private void updateAuctionRow(AuctionEvent event) {
         for (AuctionDto a : auctionData) {
             if (a.getId() != null && a.getId() == event.getAuctionId()) {
+                // Cập nhật giá và số lượt bid
                 a.setCurrentPrice(event.getCurrentPrice());
                 a.setTotalBids(event.getTotalBids());
                 if (event.getEndTime() != null) a.setEndTime(event.getEndTime());
-                if (event.getType() == AuctionEvent.Type.AUCTION_CLOSED)  a.setStatus("FINISHED");
-                if (event.getType() == AuctionEvent.Type.AUCTION_STARTED) a.setStatus("RUNNING");
+
+                // Cập nhật status field để resolveStatus() render đúng ngay lập tức
+                switch (event.getType()) {
+                    case AUCTION_STARTED  -> a.setStatus("RUNNING");
+                    case AUCTION_CLOSED   -> a.setStatus("FINISHED");
+                    case AUCTION_CANCELED -> a.setStatus("CANCELED");
+                    default -> {} // NEW_BID: giữ nguyên status
+                }
                 break;
             }
         }
+        // refresh() kích hoạt cellValueFactory chạy lại → resolveStatus() được gọi lại
         tblAuctions.refresh();
     }
 
