@@ -387,36 +387,41 @@ class AutoBidServiceTest {
         }
 
         @Test
-        @DisplayName("FIFO: config đăng ký trước được ưu tiên (thứ tự từ repository)")
-        void trigger_multipleConfigs_usesFirstFromRepository() {
-            // Repository trả về theo createdAt ASC → configs.get(0) là người đăng ký trước
-            AutoBidConfig firstRegistered = AutoBidConfig.builder()
+        @DisplayName("PriorityQueue: Người có maxAmount cao nhất đấu giá (Proxy Bidding)")
+        void trigger_multipleConfigs_usesHighestMaxAmountAndProxyBidding() {
+            // RunnerUp: bidder01 max = 3,000,000
+            AutoBidConfig runnerUpConfig = AutoBidConfig.builder()
                     .id(1L).bidder(bidder).auctionItem(activeAuction)
-                    .maxAmount(new BigDecimal("5000000"))
-                    .increment(new BigDecimal("200000"))
+                    .maxAmount(new BigDecimal("3000000"))
+                    .increment(new BigDecimal("100000"))
                     .isActive(true).build();
 
-            AutoBidConfig laterRegistered = AutoBidConfig.builder()
+            // Winner: bidder02 max = 5,000,000
+            AutoBidConfig winnerConfig = AutoBidConfig.builder()
                     .id(2L).bidder(bidder2).auctionItem(activeAuction)
                     .maxAmount(new BigDecimal("5000000"))
-                    .increment(new BigDecimal("200000"))
+                    .increment(new BigDecimal("200000")) // increment của winner là 200k
                     .isActive(true).build();
 
             User currentLeader = User.builder().id(50L).username("someone_else")
                     .role(Role.BIDDER).balance(BigDecimal.ZERO).build();
 
             given(auctionService.findById(10L)).willReturn(activeAuction);
-            // Repository đã sắp xếp theo createdAt ASC
+            
+            // Giả lập Repository trả về cả 2 (không quan tâm thứ tự vì sẽ vào PriorityQueue)
             given(configRepo.findActiveConfigsExcluding(activeAuction, currentLeader))
-                    .willReturn(List.of(firstRegistered, laterRegistered));
+                    .willReturn(List.of(runnerUpConfig, winnerConfig));
 
             autoBidService.triggerAutoBids(activeAuction, currentLeader);
 
-            // Chỉ người đăng ký trước (firstRegistered) được kích hoạt trong lần này
+            // Winner (bidder02) sẽ đặt giá bằng runnerUp.maxAmount (3,000,000) + winner.increment (200,000)
+            // nextBid = 3,200,000
             then(bidService).should().doPlaceBid(
-                    eq(10L), any(), eq("bidder01"), eq(true));
+                    eq(10L), eq(new BigDecimal("3200000")), eq("bidder02"), eq(true));
+            
+            // RunnerUp (bidder01) không được đặt giá
             then(bidService).should(never()).doPlaceBid(
-                    eq(10L), any(), eq("bidder02"), eq(true));
+                    eq(10L), any(), eq("bidder01"), eq(true));
         }
 
         @Test

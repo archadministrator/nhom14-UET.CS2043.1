@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -93,19 +94,41 @@ public class AutoBidService {
             List<AutoBidConfig> configs = configRepo.findActiveConfigsExcluding(freshItem, leader);
             if (configs.isEmpty()) return;
 
-            AutoBidConfig topConfig = configs.get(0);
-            BigDecimal nextBid = freshItem.getCurrentPrice().add(topConfig.getIncrement());
+            PriorityQueue<AutoBidConfig> pq = new PriorityQueue<>(
+                    (c1, c2) -> c2.getMaxAmount().compareTo(c1.getMaxAmount())
+            );
+            pq.addAll(configs);
 
-            if (nextBid.compareTo(topConfig.getMaxAmount()) > 0) {
-                deactivateConfig(topConfig);
-                return;
+            while (!pq.isEmpty()) {
+                AutoBidConfig winner = pq.poll();
+                AutoBidConfig runnerUp = pq.peek();
+
+                BigDecimal basePrice = freshItem.getCurrentPrice();
+                if (runnerUp != null && runnerUp.getMaxAmount().compareTo(basePrice) > 0) {
+                    basePrice = runnerUp.getMaxAmount();
+                }
+
+                BigDecimal nextBid = basePrice.add(winner.getIncrement());
+
+                // Nếu nhảy vượt quá maxAmount của mình, thì chỉ đặt giá bằng đúng maxAmount
+                if (nextBid.compareTo(winner.getMaxAmount()) > 0) {
+                    nextBid = winner.getMaxAmount();
+                }
+
+                // Tuy nhiên, giá đặt phải luôn thỏa mãn mức giá tối thiểu của phiên
+                BigDecimal minAllowedBid = freshItem.getCurrentPrice().add(freshItem.getMinIncrement());
+                if (nextBid.compareTo(minAllowedBid) < 0) {
+                    deactivateConfig(winner);
+                    continue;
+                }
+
+                log.info("AutoBid trigger: bidder={} auction={} amount={}",
+                        winner.getBidder().getUsername(), freshItem.getId(), nextBid);
+
+                bidService.doPlaceBid(freshItem.getId(), nextBid,
+                        winner.getBidder().getUsername(), true);
+                break;
             }
-
-            log.info("AutoBid trigger: bidder={} auction={} amount={}",
-                    topConfig.getBidder().getUsername(), freshItem.getId(), nextBid);
-
-            bidService.doPlaceBid(freshItem.getId(), nextBid,
-                    topConfig.getBidder().getUsername(), true);
 
         } finally {
             lock.unlock();
