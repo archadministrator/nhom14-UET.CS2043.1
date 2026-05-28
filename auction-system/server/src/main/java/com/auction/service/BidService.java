@@ -150,12 +150,23 @@ public class BidService {
                 winner, totalBids, item.getEndTime());
 
         messagingTemplate.convertAndSend("/topic/auction/" + item.getId(), msg);
+        // Broadcast lên global topic để AuctionListController cập nhật trạng thái ngay
+        messagingTemplate.convertAndSend("/topic/auctions", msg);
     }
 
     public void broadcastAuctionStarted(AuctionItem item) {
         Dto.BidUpdateMessage msg = new Dto.BidUpdateMessage(
                 "AUCTION_STARTED", item.getId(), item.getCurrentPrice(),
                 null, 0L, item.getEndTime());
+
+        messagingTemplate.convertAndSend("/topic/auctions", msg);
+    }
+
+    /** Broadcast khi seller vừa tạo phiên mới — client thêm vào list ngay */
+    public void broadcastAuctionCreated(AuctionItem item) {
+        Dto.BidUpdateMessage msg = new Dto.BidUpdateMessage(
+                "AUCTION_CREATED", item.getId(), item.getCurrentPrice(),
+                item.getSeller().getUsername(), 0L, item.getEndTime());
 
         messagingTemplate.convertAndSend("/topic/auctions", msg);
     }

@@ -34,7 +34,7 @@ public class SellerDashboardController {
     private final ObservableList<AuctionDto> myAuctions = FXCollections.observableArrayList();
     private final ApiService api = ApiService.getInstance();
 
-    private static final DateTimeFormatter DTF_IN =
+    private static final DateTimeFormatter DTF_IN  =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
     private static final DateTimeFormatter DTF_OUT =
             DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -154,13 +154,14 @@ public class SellerDashboardController {
         }
 
         Map<String, Object> data = new HashMap<>();
-        data.put("name", name);
-        data.put("description", txtDesc.getText().trim());
-        data.put("startPrice", startPrice);
+        data.put("name",         name);
+        String desc = txtDesc.getText().trim();
+        data.put("description",  desc.isEmpty() ? "Không có mô tả" : desc);
+        data.put("startPrice",   startPrice);
         data.put("minIncrement", increment);
-        data.put("startTime", startTime.format(DTF_OUT));
-        data.put("endTime",   endTime.format(DTF_OUT));
-        data.put("imageUrl",  txtImageUrl.getText().trim());
+        data.put("startTime",    startTime.format(DTF_OUT));
+        data.put("endTime",      endTime.format(DTF_OUT));
+        data.put("imageUrl",     txtImageUrl.getText().trim());
 
         btnSave.setDisable(true);
         Thread t = new Thread(() -> {
@@ -228,9 +229,14 @@ public class SellerDashboardController {
         hideMsg();
     }
 
+    /**
+     * Show form message using CSS classes — no inline style strings.
+     * success → label-accent (green), failure → label-danger (red)
+     */
     private void showMsg(String msg, boolean success) {
         lblFormMsg.setText(msg);
-        lblFormMsg.setStyle("-fx-font-size:12px;-fx-text-fill:" + (success ? "#2E7D32" : "#C62828") + ";");
+        lblFormMsg.getStyleClass().removeAll("label-accent", "label-danger", "label");
+        lblFormMsg.getStyleClass().add(success ? "label-accent" : "label-danger");
         lblFormMsg.setVisible(true);
         lblFormMsg.setManaged(true);
     }
@@ -243,11 +249,11 @@ public class SellerDashboardController {
     private String translateStatus(String s) {
         if (s == null) return "";
         return switch (s) {
-            case "OPEN"     -> "Sắp bắt đầu";
-            case "RUNNING"  -> "Đang diễn ra";
-            case "FINISHED" -> "Đã kết thúc";
-            case "PAID"     -> "Đã thanh toán";
-            case "CANCELED" -> "Đã hủy";
+            case "OPEN"     -> "○ Sắp bắt đầu";
+            case "RUNNING"  -> "● Đang diễn ra";
+            case "FINISHED" -> "✓ Đã kết thúc";
+            case "PAID"     -> "✓ Đã thanh toán";
+            case "CANCELED" -> "✕ Đã hủy";
             default         -> s;
         };
     }

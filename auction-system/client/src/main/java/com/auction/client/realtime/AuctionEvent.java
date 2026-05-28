@@ -15,8 +15,10 @@ public final class AuctionEvent {
 
     public enum Type {
         NEW_BID,
+        AUCTION_CREATED,
         AUCTION_STARTED,
-        AUCTION_CLOSED
+        AUCTION_CLOSED,
+        AUCTION_CANCELED
     }
 
     private final Type        type;
@@ -39,9 +41,11 @@ public final class AuctionEvent {
     /** Factory: chuyển BidUpdateMessage thô → AuctionEvent có type. */
     public static AuctionEvent from(BidUpdateMessage msg) {
         Type t = switch (msg.getType()) {
-            case "AUCTION_STARTED" -> Type.AUCTION_STARTED;
-            case "AUCTION_CLOSED"  -> Type.AUCTION_CLOSED;
-            default                -> Type.NEW_BID;
+            case "AUCTION_CREATED"  -> Type.AUCTION_CREATED;
+            case "AUCTION_STARTED"  -> Type.AUCTION_STARTED;
+            case "AUCTION_CLOSED"   -> Type.AUCTION_CLOSED;
+            case "AUCTION_CANCELED" -> Type.AUCTION_CANCELED;
+            default                 -> Type.NEW_BID;
         };
         return new AuctionEvent(t, msg.getAuctionId(), msg.getCurrentPrice(),
                 msg.getLeaderUsername(), msg.getTotalBids(), msg.getEndTime());

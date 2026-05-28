@@ -7,6 +7,7 @@ import com.auction.model.User;
 import com.auction.util.Dto;
 import com.auction.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,13 +25,16 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authManager;
     private final JwtUtil jwtUtil;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       AuthenticationManager authManager, JwtUtil jwtUtil) {
+                       AuthenticationManager authManager, JwtUtil jwtUtil,
+                       SimpMessagingTemplate messagingTemplate) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authManager = authManager;
         this.jwtUtil = jwtUtil;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -111,6 +115,12 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("Không tìm thấy user id: " + userId));
         user.setActive(active);
         userRepository.save(user);
+
+        if (!active) {
+            messagingTemplate.convertAndSend("/topic/user/" + user.getUsername(),
+                    new Dto.AccountStatusMessage("ACCOUNT_LOCKED", user.getUsername(), "Tài khoản của bạn đã bị khóa bởi Quản trị viên."));
+            log.info("Đã gửi broadcast khóa tài khoản cho user: {}", user.getUsername());
+        }
     }
 
     public User findByUsername(String username) {

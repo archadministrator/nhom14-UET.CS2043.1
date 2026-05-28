@@ -42,8 +42,8 @@ public class LoginController {
         loginFields.setManaged(true);
         registerFields.setVisible(false);
         registerFields.setManaged(false);
-        btnSubmit.setText("Đăng nhập");
-        styleActiveTab(btnTabLogin, btnTabRegister);
+        btnSubmit.setText("ĐĂNG NHẬP");
+        setActiveTab(btnTabLogin, btnTabRegister);
         hideError();
     }
 
@@ -54,8 +54,8 @@ public class LoginController {
         loginFields.setManaged(false);
         registerFields.setVisible(true);
         registerFields.setManaged(true);
-        btnSubmit.setText("Đăng ký");
-        styleActiveTab(btnTabRegister, btnTabLogin);
+        btnSubmit.setText("ĐĂNG KÝ");
+        setActiveTab(btnTabRegister, btnTabLogin);
         hideError();
     }
 
@@ -114,10 +114,14 @@ public class LoginController {
         lblError.setManaged(false);
     }
 
-    private void styleActiveTab(Button active, Button inactive) {
-        active.setStyle("-fx-background-color: white; -fx-text-fill: #1565C0; -fx-font-weight: bold;"
-                + "-fx-border-color: transparent; -fx-cursor: hand; -fx-font-size: 13px;");
-        inactive.setStyle("-fx-background-color: transparent; -fx-text-fill: #BBDEFB;"
-                + "-fx-border-color: transparent; -fx-cursor: hand; -fx-font-size: 13px;");
+    /** Swap CSS style classes for active / inactive tab appearance */
+    private void setActiveTab(Button active, Button inactive) {
+        active.getStyleClass().removeAll("tab-btn-inactive");
+        if (!active.getStyleClass().contains("tab-btn-active"))
+            active.getStyleClass().add("tab-btn-active");
+
+        inactive.getStyleClass().removeAll("tab-btn-active");
+        if (!inactive.getStyleClass().contains("tab-btn-inactive"))
+            inactive.getStyleClass().add("tab-btn-inactive");
     }
 }

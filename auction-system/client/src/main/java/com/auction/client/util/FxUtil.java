@@ -14,18 +14,27 @@ import java.util.Optional;
 
 public class FxUtil {
 
+    // Scene và Stage duy nhất được đăng ký từ MainApp.start()
+    private static Scene  sharedScene;
+    private static Stage  sharedStage;
+
     private FxUtil() {}
 
+    /** Gọi một lần duy nhất từ MainApp.start() */
+    public static void setScene(Scene scene, Stage stage) {
+        sharedScene = scene;
+        sharedStage = stage;
+    }
+
+    /**
+     * Swap root của scene duy nhất — không tạo Scene mới,
+     * cửa sổ giữ nguyên kích thước / maximized state.
+     */
     public static void switchScene(Node source, String fxmlPath, String title) {
         try {
             Parent root = FXMLLoader.load(FxUtil.class.getResource(fxmlPath));
-            Stage stage = (Stage) source.getScene().getWindow();
-            Scene scene = new Scene(root);
-            var css = FxUtil.class.getResource("/css/main.css");
-            if (css != null) scene.getStylesheets().add(css.toExternalForm());
-            stage.setScene(scene);
-            stage.setTitle("AuctionSystem — " + title);
-            stage.centerOnScreen();
+            sharedScene.setRoot(root);
+            sharedStage.setTitle("AuctionSystem — " + title);
         } catch (IOException e) {
             showError("Không thể mở màn hình: " + e.getMessage());
         }
@@ -37,13 +46,8 @@ public class FxUtil {
             FXMLLoader loader = new FXMLLoader(FxUtil.class.getResource(fxmlPath));
             Parent root = loader.load();
             callback.init(loader.getController());
-            Stage stage = (Stage) source.getScene().getWindow();
-            Scene scene = new Scene(root);
-            var css = FxUtil.class.getResource("/css/main.css");
-            if (css != null) scene.getStylesheets().add(css.toExternalForm());
-            stage.setScene(scene);
-            stage.setTitle("AuctionSystem — " + title);
-            stage.centerOnScreen();
+            sharedScene.setRoot(root);
+            sharedStage.setTitle("AuctionSystem — " + title);
         } catch (IOException e) {
             showError("Không thể mở màn hình: " + e.getMessage());
         }

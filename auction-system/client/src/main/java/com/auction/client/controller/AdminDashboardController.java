@@ -20,24 +20,24 @@ public class AdminDashboardController {
 
     // User Table
     @FXML private TableView<UserDto> tblUsers;
-    @FXML private TableColumn<UserDto, Long> colUserId;
-    @FXML private TableColumn<UserDto, String> colUsername;
-    @FXML private TableColumn<UserDto, String> colEmail;
-    @FXML private TableColumn<UserDto, String> colRole;
+    @FXML private TableColumn<UserDto, Long>       colUserId;
+    @FXML private TableColumn<UserDto, String>     colUsername;
+    @FXML private TableColumn<UserDto, String>     colEmail;
+    @FXML private TableColumn<UserDto, String>     colRole;
     @FXML private TableColumn<UserDto, BigDecimal> colBalance;
-    @FXML private TableColumn<UserDto, Boolean> colStatus;
-    @FXML private TableColumn<UserDto, Void> colActions;
+    @FXML private TableColumn<UserDto, Boolean>    colStatus;
+    @FXML private TableColumn<UserDto, Void>       colActions;
     @FXML private TextField txtSearchUser;
 
     // Auction Table
     @FXML private TableView<AuctionDto> tblAuctions;
-    @FXML private TableColumn<AuctionDto, Long> colAucId;
-    @FXML private TableColumn<AuctionDto, String> colAucName;
-    @FXML private TableColumn<AuctionDto, String> colAucSeller;
+    @FXML private TableColumn<AuctionDto, Long>       colAucId;
+    @FXML private TableColumn<AuctionDto, String>     colAucName;
+    @FXML private TableColumn<AuctionDto, String>     colAucSeller;
     @FXML private TableColumn<AuctionDto, BigDecimal> colAucPrice;
-    @FXML private TableColumn<AuctionDto, String> colAucStatus;
-    @FXML private TableColumn<AuctionDto, String> colAucEndTime;
-    @FXML private TableColumn<AuctionDto, Void> colAucActions;
+    @FXML private TableColumn<AuctionDto, String>     colAucStatus;
+    @FXML private TableColumn<AuctionDto, String>     colAucEndTime;
+    @FXML private TableColumn<AuctionDto, Void>       colAucActions;
 
     // Stats
     @FXML private Label lblTotalUsers;
@@ -47,7 +47,7 @@ public class AdminDashboardController {
     @FXML private TabPane tabPane;
 
     private final ApiService api = ApiService.getInstance();
-    private final ObservableList<UserDto> userList = FXCollections.observableArrayList();
+    private final ObservableList<UserDto>    userList    = FXCollections.observableArrayList();
     private final ObservableList<AuctionDto> auctionList = FXCollections.observableArrayList();
 
     @FXML
@@ -64,7 +64,7 @@ public class AdminDashboardController {
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
         colRole.setCellValueFactory(new PropertyValueFactory<>("role"));
         colBalance.setCellValueFactory(new PropertyValueFactory<>("balance"));
-        
+
         colStatus.setCellValueFactory(new PropertyValueFactory<>("active"));
         colStatus.setCellFactory(column -> new TableCell<>() {
             @Override
@@ -72,10 +72,11 @@ public class AdminDashboardController {
                 super.updateItem(active, empty);
                 if (empty || active == null) {
                     setText(null);
-                    setStyle("");
+                    getStyleClass().removeAll("label-accent", "label-danger");
                 } else {
-                    setText(active ? "Đang hoạt động" : "Bị khoá");
-                    setTextFill(active ? javafx.scene.paint.Color.GREEN : javafx.scene.paint.Color.RED);
+                    setText(active ? "● Hoạt động" : "✕ Bị khoá");
+                    getStyleClass().removeAll("label-accent", "label-danger");
+                    getStyleClass().add(active ? "label-accent" : "label-danger");
                 }
             }
         });
@@ -83,25 +84,25 @@ public class AdminDashboardController {
         setupUserActionButtons();
 
         FilteredList<UserDto> filteredUsers = new FilteredList<>(userList, p -> true);
-        txtSearchUser.textProperty().addListener((obs, oldVal, newVal) -> {
-            filteredUsers.setPredicate(user -> {
-                if (newVal == null || newVal.isEmpty()) return true;
-                String lower = newVal.toLowerCase();
-                return user.getUsername().toLowerCase().contains(lower) || 
-                       user.getEmail().toLowerCase().contains(lower);
-            });
-        });
+        txtSearchUser.textProperty().addListener((obs, oldVal, newVal) ->
+                filteredUsers.setPredicate(user -> {
+                    if (newVal == null || newVal.isEmpty()) return true;
+                    String lower = newVal.toLowerCase();
+                    return user.getUsername().toLowerCase().contains(lower)
+                            || user.getEmail().toLowerCase().contains(lower);
+                }));
         tblUsers.setItems(filteredUsers);
     }
 
     private void setupUserActionButtons() {
         colActions.setCellFactory(param -> new TableCell<>() {
-            private final Button btnToggle = new Button();
+            private final Button btnToggle  = new Button();
             private final Button btnAddMoney = new Button("+$");
 
             {
-                btnToggle.setPrefWidth(80);
-                btnAddMoney.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+                btnToggle.setPrefWidth(72);
+                btnAddMoney.getStyleClass().addAll("button", "btn-primary");
+                btnAddMoney.setStyle("-fx-padding: 5 10; -fx-font-size: 11px;");
             }
 
             @Override
@@ -112,13 +113,18 @@ public class AdminDashboardController {
                 } else {
                     UserDto user = getTableView().getItems().get(getIndex());
                     btnToggle.setText(user.isActive() ? "Khoá" : "Mở");
-                    btnToggle.setStyle(user.isActive() ? "-fx-background-color: #f44336; -fx-text-fill: white;" 
-                                                     : "-fx-background-color: #2196F3; -fx-text-fill: white;");
-                    
+
+                    btnToggle.getStyleClass().removeAll(
+                            "button", "btn-danger", "btn-primary");
+                    btnToggle.getStyleClass().addAll("button",
+                            user.isActive() ? "btn-danger" : "btn-primary");
+                    btnToggle.setStyle("-fx-padding: 5 10; -fx-font-size: 11px;");
+
                     btnToggle.setOnAction(e -> handleToggleUser(user));
                     btnAddMoney.setOnAction(e -> handleAddMoney(user));
 
-                    HBox container = new HBox(5, btnToggle, btnAddMoney);
+                    HBox container = new HBox(6, btnToggle, btnAddMoney);
+                    container.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                     setGraphic(container);
                 }
             }
@@ -128,12 +134,14 @@ public class AdminDashboardController {
     private void setupAuctionTable() {
         colAucId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colAucName.setCellValueFactory(new PropertyValueFactory<>("name"));
-        colAucSeller.setCellValueFactory(column -> 
-            new javafx.beans.property.SimpleStringProperty(column.getValue().getSeller().getUsername()));
+        colAucSeller.setCellValueFactory(column ->
+                new javafx.beans.property.SimpleStringProperty(
+                        column.getValue().getSeller().getUsername()));
         colAucPrice.setCellValueFactory(new PropertyValueFactory<>("currentPrice"));
         colAucStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colAucEndTime.setCellValueFactory(column -> 
-            new javafx.beans.property.SimpleStringProperty(column.getValue().getEndTime().toString()));
+        colAucEndTime.setCellValueFactory(column ->
+                new javafx.beans.property.SimpleStringProperty(
+                        column.getValue().getEndTime().toString()));
 
         setupAuctionActionButtons();
         tblAuctions.setItems(auctionList);
@@ -142,11 +150,13 @@ public class AdminDashboardController {
     private void setupAuctionActionButtons() {
         colAucActions.setCellFactory(param -> new TableCell<>() {
             private final Button btnDelete = new Button("Xoá");
-            private final Button btnPaid = new Button("Paid");
+            private final Button btnPaid   = new Button("Paid");
 
             {
-                btnDelete.setStyle("-fx-background-color: #f44336; -fx-text-fill: white;");
-                btnPaid.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white;");
+                btnDelete.getStyleClass().addAll("button", "btn-danger");
+                btnDelete.setStyle("-fx-padding: 5 10; -fx-font-size: 11px;");
+                btnPaid.getStyleClass().addAll("button", "btn-warn");
+                btnPaid.setStyle("-fx-padding: 5 10; -fx-font-size: 11px;");
             }
 
             @Override
@@ -158,11 +168,12 @@ public class AdminDashboardController {
                     AuctionDto auction = getTableView().getItems().get(getIndex());
                     btnPaid.setVisible("FINISHED".equals(auction.getStatus()));
                     btnPaid.setManaged("FINISHED".equals(auction.getStatus()));
-                    
+
                     btnDelete.setOnAction(e -> handleDeleteAuction(auction));
                     btnPaid.setOnAction(e -> handleMarkPaid(auction));
 
-                    HBox container = new HBox(5, btnDelete, btnPaid);
+                    HBox container = new HBox(6, btnDelete, btnPaid);
+                    container.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                     setGraphic(container);
                 }
             }
@@ -197,8 +208,9 @@ public class AdminDashboardController {
                 List<AuctionDto> auctions = api.getAllAuctionsAdmin();
                 Platform.runLater(() -> {
                     auctionList.setAll(auctions);
-                    long running = auctions.stream().filter(a -> "RUNNING".equals(a.getStatus())).count();
-                    long finished = auctions.stream().filter(a -> "FINISHED".equals(a.getStatus()) || "PAID".equals(a.getStatus())).count();
+                    long running  = auctions.stream().filter(a -> "RUNNING".equals(a.getStatus())).count();
+                    long finished = auctions.stream()
+                            .filter(a -> "FINISHED".equals(a.getStatus()) || "PAID".equals(a.getStatus())).count();
                     lblRunningAuctions.setText(String.valueOf(running));
                     lblFinishedAuctions.setText(String.valueOf(finished));
                 });
@@ -227,16 +239,14 @@ public class AdminDashboardController {
 
     private void handleAddMoney(UserDto user) {
         FxUtil.showInputDialog("Cộng tiền", "Cộng tiền cho " + user.getUsername(), "1000000")
-            .ifPresent(val -> {
-                try {
-                    new BigDecimal(val);
-                    // Lưu ý: Cần API admin cộng tiền riêng hoặc dùng topup hiện có (nếu allow admin)
-                    // Hiện tại server chỉ có topup cho 'me'. Ta có thể mở rộng sau.
-                    FxUtil.showInfo("Chức năng này cần API Admin nạp tiền. Đang phát triển.");
-                } catch (Exception e) {
-                    FxUtil.showError("Số tiền không hợp lệ.");
-                }
-            });
+                .ifPresent(val -> {
+                    try {
+                        new BigDecimal(val);
+                        FxUtil.showInfo("Chức năng này cần API Admin nạp tiền. Đang phát triển.");
+                    } catch (Exception e) {
+                        FxUtil.showError("Số tiền không hợp lệ.");
+                    }
+                });
     }
 
     private void handleDeleteAuction(AuctionDto auction) {

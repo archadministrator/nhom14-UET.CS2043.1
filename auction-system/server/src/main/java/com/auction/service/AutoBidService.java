@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @Slf4j
@@ -71,40 +72,51 @@ public class AutoBidService {
         });
     }
 
-    @Transactional
     public void triggerAutoBids(AuctionItem item, User currentLeader) {
         if (!item.isAcceptingBids()) return;
 
-        User leader = currentLeader;
-        if (leader == null) {
-            List<Dto.BidResponse> history = bidService.getBidHistory(item.getId());
-            if (!history.isEmpty()) {
-                leader = userService.findByUsername(history.get(0).bidder().username());
-            }
-        }
-
-        List<AutoBidConfig> configs = configRepo.findActiveConfigsExcluding(item, leader);
-        if (configs.isEmpty()) return;
-
-        AutoBidConfig topConfig = configs.get(0);
-        BigDecimal nextBid = item.getCurrentPrice().add(topConfig.getIncrement());
-
-        if (nextBid.compareTo(topConfig.getMaxAmount()) > 0) {
-            topConfig.setActive(false);
-            configRepo.save(topConfig);
-            log.info("AutoBid maxAmount reached: bidder={} auction={}",
-                    topConfig.getBidder().getUsername(), item.getId());
-            return;
-        }
-
-        synchronized (bidService) {
+        ReentrantLock lock = bidService.getLock(item.getId());
+        lock.lock();
+        try {
             AuctionItem freshItem = auctionService.findById(item.getId());
-            BigDecimal freshNext = freshItem.getCurrentPrice().add(topConfig.getIncrement());
 
-            if (freshNext.compareTo(topConfig.getMaxAmount()) <= 0) {
-                bidService.doPlaceBid(item.getId(), freshNext,
-                        topConfig.getBidder().getUsername(), true);
+            if (!freshItem.isAcceptingBids()) return;
+
+            User leader = currentLeader;
+            if (leader == null) {
+                List<Dto.BidResponse> history = bidService.getBidHistory(freshItem.getId());
+                if (!history.isEmpty()) {
+                    leader = userService.findByUsername(history.get(0).bidder().username());
+                }
             }
+
+            List<AutoBidConfig> configs = configRepo.findActiveConfigsExcluding(freshItem, leader);
+            if (configs.isEmpty()) return;
+
+            AutoBidConfig topConfig = configs.get(0);
+            BigDecimal nextBid = freshItem.getCurrentPrice().add(topConfig.getIncrement());
+
+            if (nextBid.compareTo(topConfig.getMaxAmount()) > 0) {
+                deactivateConfig(topConfig);
+                return;
+            }
+
+            log.info("AutoBid trigger: bidder={} auction={} amount={}",
+                    topConfig.getBidder().getUsername(), freshItem.getId(), nextBid);
+
+            bidService.doPlaceBid(freshItem.getId(), nextBid,
+                    topConfig.getBidder().getUsername(), true);
+
+        } finally {
+            lock.unlock();
         }
+    }
+
+    @Transactional
+    private void deactivateConfig(AutoBidConfig config) {
+        config.setActive(false);
+        configRepo.save(config);
+        log.info("AutoBid maxAmount reached: bidder={} auction={}",
+                config.getBidder().getUsername(), config.getAuctionItem().getId());
     }
 }

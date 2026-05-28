@@ -53,6 +53,9 @@ public class WebSocketService {
 
     private final AuctionEventBus eventBus = AuctionEventBus.getInstance();
 
+    private String currentUsername;
+    private Runnable onAccountLocked;
+
     private WebSocketClient wsClient;
 
     private final AtomicBoolean stompConnected = new AtomicBoolean(false);
@@ -112,6 +115,8 @@ public class WebSocketService {
         stompConnected.set(false);
         activeSubscriptions.clear();
         auctionSubIds.clear();
+        currentUsername = null;
+        onAccountLocked = null;
     }
 
     /** Subscribe STOMP topic cho một phiên — EventBus nhận notify */
@@ -139,6 +144,22 @@ public class WebSocketService {
     public void subscribeGlobal() {
         if (stompConnected.get()) doSubscribeGlobal();
         // Sẽ subscribe sau CONNECTED nếu chưa kết nối
+    }
+
+    public void subscribeToUserTopic(String username, Runnable callback) {
+        this.currentUsername = username;
+        this.onAccountLocked = callback;
+        if (stompConnected.get()) {
+            doSubscribeUserTopic();
+        }
+    }
+
+    private void doSubscribeUserTopic() {
+        if (currentUsername == null) return;
+        String topic = "/topic/user/" + currentUsername;
+        if (!activeSubscriptions.containsValue(topic)) {
+            doSubscribe(topic, null);
+        }
     }
 
     public boolean isConnected() {
@@ -172,6 +193,17 @@ public class WebSocketService {
         if (body == null || body.isBlank()) return;
 
         try {
+            com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(body);
+            if (node.has("type")) {
+                String type = node.get("type").asText();
+                if ("ACCOUNT_LOCKED".equals(type)) {
+                    System.out.println("[STOMP] Received ACCOUNT_LOCKED message!");
+                    if (onAccountLocked != null) {
+                        onAccountLocked.run();
+                    }
+                    return;
+                }
+            }
             BidUpdateMessage msg = mapper.readValue(body, BidUpdateMessage.class);
             // Publish lên EventBus — dispatch đến tất cả observers đã đăng ký
             eventBus.publish(AuctionEvent.from(msg));
@@ -234,6 +266,11 @@ public class WebSocketService {
 
         // Global topic
         doSubscribeGlobal();
+
+        // User topic
+        if (currentUsername != null) {
+            doSubscribeUserTopic();
+        }
 
         // Từng phiên đấu giá đang được theo dõi
         for (Long auctionId : trackedAuctions) {

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,6 +36,7 @@ class AuctionServiceTest {
     @Mock AuctionItemRepository auctionRepo;
     @Mock BidRepository bidRepo;
     @Mock UserService userService;
+    @Mock SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks AuctionService auctionService;
 
@@ -198,9 +200,6 @@ class AuctionServiceTest {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // DELETE
-    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("delete()")
     class Delete {
@@ -260,9 +259,7 @@ class AuctionServiceTest {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // LIFECYCLE: ACTIVATE / CLOSE / MARK PAID
-    // ─────────────────────────────────────────────────────────────────
+
     @Nested
     @DisplayName("Lifecycle transitions")
     class Lifecycle {
@@ -330,9 +327,6 @@ class AuctionServiceTest {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // FIND BY ID
-    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("findById()")
     class FindById {
