@@ -60,6 +60,9 @@ public class AuctionItem {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "snip_extension_count", nullable = false)
+    private int snipExtensionCount = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -77,3 +80,4 @@ public class AuctionItem {
         return currentPrice.add(minIncrement);
     }
 }
+
