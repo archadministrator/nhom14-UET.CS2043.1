@@ -79,11 +79,23 @@ public class BidService {
         userService.subtractBalance(bidderUsername, amount);
 
         // 3. Nếu trừ tiền thành công, tiến hành cập nhật đấu giá
-        // Anti-sniping: bid trong 5 phút cuối → gia hạn thêm 5 phút
+        // Anti-sniping: bid trong 5 phút cuối
         LocalDateTime now = LocalDateTime.now();
         if (item.getEndTime().minusMinutes(5).isBefore(now)) {
-            item.setEndTime(item.getEndTime().plusMinutes(5));
-            log.info("Auction [{}] gia hạn anti-sniping → endTime: {}", auctionId, item.getEndTime());
+            if (item.getSnipExtensionCount() < 3) {
+                // Còn quota → gia hạn thêm 5 phút
+                item.setEndTime(item.getEndTime().plusMinutes(5));
+                item.setSnipExtensionCount(item.getSnipExtensionCount() + 1);
+                log.info("Auction [{}] anti-snip lần {} → endTime: {}",
+                        auctionId, item.getSnipExtensionCount(), item.getEndTime());
+            } else {
+                // Hết quota (đã gia hạn 3 lần) → hard close sau 30 giây
+                LocalDateTime hardClose = now.plusSeconds(30);
+                if (item.getEndTime().isAfter(hardClose)) {
+                    item.setEndTime(hardClose);
+                    log.info("Auction [{}] anti-snip hết quota → hard close lúc: {}", auctionId, hardClose);
+                }
+            }
         }
 
         item.setCurrentPrice(amount);
