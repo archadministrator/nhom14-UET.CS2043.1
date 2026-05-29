@@ -2,7 +2,6 @@ package com.auction.service;
 
 import com.auction.dao.BidRepository;
 import com.auction.exception.AuctionClosedException;
-import com.auction.exception.InsufficientBalanceException;
 import com.auction.exception.InvalidBidException;
 import com.auction.model.AuctionItem;
 import com.auction.model.Bid;
@@ -32,6 +31,7 @@ public class BidService {
     private final AutoBidService autoBidService;
     private final SimpMessagingTemplate messagingTemplate;
 
+
     private final Map<Long, ReentrantLock> auctionLocks = new ConcurrentHashMap<>();
 
     public BidService(BidRepository bidRepo,
@@ -50,16 +50,29 @@ public class BidService {
         return auctionLocks.computeIfAbsent(auctionId, id -> new ReentrantLock(true));
     }
 
-    @Transactional
-    public synchronized Dto.BidResponse placeBid(Long auctionId, Dto.PlaceBidRequest req, String bidderUsername) {
+    public Dto.BidResponse placeBid(Long auctionId, Dto.PlaceBidRequest req, String bidderUsername) {
         return doPlaceBid(auctionId, req.amount(), bidderUsername, false);
     }
 
-    Dto.BidResponse doPlaceBid(Long auctionId, BigDecimal amount,
-                               String bidderUsername, boolean isAuto) {
+    @Transactional
+    public Dto.BidResponse doPlaceBid(Long auctionId, BigDecimal amount,
+                                      String bidderUsername, boolean isAuto) {
+        ReentrantLock lock = getLockForAuction(auctionId);
+        lock.lock();
+        try {
+            return executeBid(auctionId, amount, bidderUsername, isAuto);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
+    private Dto.BidResponse executeBid(Long auctionId, BigDecimal amount,
+                                       String bidderUsername, boolean isAuto) {
         AuctionItem item = auctionService.findById(auctionId);
         User bidder = userService.findByUsername(bidderUsername);
 
+        // --- Validate ---
         if (!item.isAcceptingBids())
             throw new AuctionClosedException();
 
@@ -72,59 +85,60 @@ public class BidService {
                     "Giá đặt tối thiểu là %,.0f₫ (hiện tại %,.0f₫ + mức tăng %,.0f₫)",
                     minBid, item.getCurrentPrice(), item.getMinIncrement()));
 
-        // 1. Lưu thông tin người đang giữ giá cao nhất để hoàn tiền
+
         Optional<Bid> topBidOpt = bidRepo.findTopBidByAuction(item);
 
-        // 2. Thử trừ tiền người đặt giá mới (Nếu không đủ tiền sẽ văng ngoại lệ và Transaction sẽ rollback)
+
         userService.subtractBalance(bidderUsername, amount);
 
-        // 3. Nếu trừ tiền thành công, tiến hành cập nhật đấu giá
-        // Anti-sniping: bid trong 5 phút cuối
-        LocalDateTime now = LocalDateTime.now();
-        if (item.getEndTime().minusMinutes(5).isBefore(now)) {
-            if (item.getSnipExtensionCount() < 3) {
-                // Còn quota → gia hạn thêm 5 phút
-                item.setEndTime(item.getEndTime().plusMinutes(5));
-                item.setSnipExtensionCount(item.getSnipExtensionCount() + 1);
-                log.info("Auction [{}] anti-snip lần {} → endTime: {}",
-                        auctionId, item.getSnipExtensionCount(), item.getEndTime());
-            } else {
-                // Hết quota (đã gia hạn 3 lần) → hard close sau 30 giây
-                LocalDateTime hardClose = now.plusSeconds(30);
-                if (item.getEndTime().isAfter(hardClose)) {
-                    item.setEndTime(hardClose);
-                    log.info("Auction [{}] anti-snip hết quota → hard close lúc: {}", auctionId, hardClose);
-                }
-            }
-        }
+
+        applyAntiSnipingExtension(item, auctionId);
 
         item.setCurrentPrice(amount);
+        Bid savedBid = bidRepo.save(
+                Bid.builder()
+                        .auctionItem(item)
+                        .bidder(bidder)
+                        .amount(amount)
+                        .isAutoBid(isAuto)
+                        .build()
+        );
 
-        Bid bid = Bid.builder()
-                .auctionItem(item)
-                .bidder(bidder)
-                .amount(amount)
-                .isAutoBid(isAuto)
-                .build();
-
-        Bid savedBid = bidRepo.save(bid);
-
-        // 4. Hoàn tiền cho người bị vượt mặt (người giữ giá cũ)
-        if (topBidOpt.isPresent()) {
-            Bid oldTopBid = topBidOpt.get();
-            userService.addBalance(oldTopBid.getBidder().getUsername(), oldTopBid.getAmount());
-            log.info("Hoàn tiền cho người giữ giá cũ: {} số tiền {}",
-                    oldTopBid.getBidder().getUsername(), oldTopBid.getAmount());
-        }
+        topBidOpt.ifPresent(oldTop -> {
+            userService.addBalance(oldTop.getBidder().getUsername(), oldTop.getAmount());
+            log.info("Hoàn tiền cho [{}]: {}₫",
+                    oldTop.getBidder().getUsername(), oldTop.getAmount());
+        });
 
         log.info("Bid [{}] auction={} bidder={} amount={} auto={}",
                 savedBid.getId(), auctionId, bidderUsername, amount, isAuto);
 
         broadcastBidUpdate(item);
+
         autoBidService.triggerAutoBids(item, bidder);
 
         return Dto.BidResponse.from(savedBid);
     }
+
+    private void applyAntiSnipingExtension(AuctionItem item, Long auctionId) {
+        LocalDateTime now = LocalDateTime.now();
+        if (item.getEndTime().minusMinutes(5).isAfter(now)) return; // Chưa vào vùng nguy hiểm
+
+        if (item.getSnipExtensionCount() < 3) {
+            item.setEndTime(item.getEndTime().plusMinutes(5));
+            item.setSnipExtensionCount(item.getSnipExtensionCount() + 1);
+            log.info("Auction [{}] anti-snip lần {} → endTime: {}",
+                    auctionId, item.getSnipExtensionCount(), item.getEndTime());
+        } else {
+            // Đã gia hạn đủ 3 lần → hard close sau 30 giây kể từ bây giờ
+            LocalDateTime hardClose = now.plusSeconds(30);
+            if (item.getEndTime().isAfter(hardClose)) {
+                item.setEndTime(hardClose);
+                log.info("Auction [{}] anti-snip hết quota → hard close lúc: {}", auctionId, hardClose);
+            }
+        }
+    }
+
 
     @Transactional(readOnly = true)
     public List<Dto.BidResponse> getBidHistory(Long auctionId) {
@@ -139,6 +153,7 @@ public class BidService {
         return bidRepo.findByBidderOrderByBidTimeDesc(user)
                 .stream().map(Dto.BidResponse::from).toList();
     }
+
 
     void broadcastBidUpdate(AuctionItem item) {
         long totalBids = bidRepo.countByAuctionItem(item);
@@ -162,7 +177,6 @@ public class BidService {
                 winner, totalBids, item.getEndTime());
 
         messagingTemplate.convertAndSend("/topic/auction/" + item.getId(), msg);
-        // Broadcast lên global topic để AuctionListController cập nhật trạng thái ngay
         messagingTemplate.convertAndSend("/topic/auctions", msg);
     }
 
@@ -174,7 +188,6 @@ public class BidService {
         messagingTemplate.convertAndSend("/topic/auctions", msg);
     }
 
-    /** Broadcast khi seller vừa tạo phiên mới — client thêm vào list ngay */
     public void broadcastAuctionCreated(AuctionItem item) {
         Dto.BidUpdateMessage msg = new Dto.BidUpdateMessage(
                 "AUCTION_CREATED", item.getId(), item.getCurrentPrice(),
