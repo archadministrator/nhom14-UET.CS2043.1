@@ -1,6 +1,7 @@
 package com.auction.service;
 
 import com.auction.dao.UserRepository;
+import com.auction.exception.InsufficientBalanceException;
 import com.auction.exception.UserAlreadyExistsException;
 import com.auction.exception.UserNotFoundException;
 import com.auction.model.User;
@@ -89,7 +90,9 @@ public class UserService {
     public void subtractBalance(String username, BigDecimal amount) {
         User user = findByUsername(username);
         if (user.getBalance().compareTo(amount) < 0) {
-            throw new RuntimeException("Số dư không đủ.");
+            throw new InsufficientBalanceException(
+                    String.format("Số dư không đủ. Cần %,.0f₫ nhưng chỉ có %,.0f₫.",
+                            amount, user.getBalance()));
         }
         user.setBalance(user.getBalance().subtract(amount));
         userRepository.save(user);
