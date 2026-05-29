@@ -9,6 +9,8 @@ import com.auction.client.service.SessionManager;
 import com.auction.client.service.WebSocketService;
 import com.auction.client.util.FxUtil;
 import javafx.application.Platform;
+import javafx.beans.Observable;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -22,6 +24,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AuctionListController {
 
@@ -30,7 +34,6 @@ public class AuctionListController {
     @FXML private Button btnTopUp, btnNewAuction;
     @FXML private TextField txtSearch;
 
-    // Sidebar filter buttons — cần inject để đổi active style
     @FXML private Button btnMenuAll, btnMenuRunning, btnMenuOpen, btnMenuFinished;
     @FXML private Button btnMenuMyBids, btnMenuMySales;
 
@@ -38,16 +41,34 @@ public class AuctionListController {
     @FXML private TableColumn<AuctionDto,String> colId, colName, colPrice;
     @FXML private TableColumn<AuctionDto,String> colBids, colStatus, colEndTime, colSeller;
 
-    private final ObservableList<AuctionDto> auctionData = FXCollections.observableArrayList();
+    // ── Reactive price/bid cache ─────────────────────────────────────────────
+    // Mỗi auctionId → SimpleObjectProperty<BigDecimal> cho currentPrice
+    // Mỗi auctionId → SimpleObjectProperty<Long> cho totalBids
+    // TableView bind vào các property này → tự refresh khi property thay đổi,
+    // không cần gọi tblAuctions.refresh() thủ công.
+    private final Map<Long, SimpleObjectProperty<BigDecimal>> priceProps
+            = new ConcurrentHashMap<>();
+    private final Map<Long, SimpleObjectProperty<Long>> bidCountProps
+            = new ConcurrentHashMap<>();
+    private final Map<Long, SimpleObjectProperty<String>> statusProps
+            = new ConcurrentHashMap<>();
+
+    // ObservableList với extractor: khai báo Observable[] cho mỗi phần tử.
+    // Khi field trong extractor thay đổi, TableView nhận invalidation → refresh row.
+    // Dùng kết hợp với property map ở trên để đảm bảo cả hai cơ chế hoạt động.
+    private final ObservableList<AuctionDto> auctionData =
+            FXCollections.observableArrayList(item -> new Observable[]{
+                    getPriceProp(item),
+                    getBidCountProp(item),
+                    getStatusProp(item)
+            });
+
     private final ApiService      api      = ApiService.getInstance();
     private final SessionManager  session  = SessionManager.getInstance();
     private final WebSocketService ws      = WebSocketService.getInstance();
     private final AuctionEventBus  eventBus = AuctionEventBus.getInstance();
 
-    // Giữ reference để unsubscribe khi rời màn hình — tránh leak
     private AuctionObserver globalObserver;
-
-    // Track tab hiện tại để handleRefresh biết cần reload gì
     private Runnable activeFilter;
 
     private static final NumberFormat CURRENCY =
@@ -55,12 +76,31 @@ public class AuctionListController {
     private static final DateTimeFormatter DTF =
             DateTimeFormatter.ofPattern("dd/MM HH:mm");
 
+    // ── Property helpers ─────────────────────────────────────────────────────
+
+    private SimpleObjectProperty<BigDecimal> getPriceProp(AuctionDto a) {
+        return priceProps.computeIfAbsent(a.getId(),
+                id -> new SimpleObjectProperty<>(a.getCurrentPrice()));
+    }
+
+    private SimpleObjectProperty<Long> getBidCountProp(AuctionDto a) {
+        return bidCountProps.computeIfAbsent(a.getId(),
+                id -> new SimpleObjectProperty<>(a.getTotalBids()));
+    }
+
+    private SimpleObjectProperty<String> getStatusProp(AuctionDto a) {
+        return statusProps.computeIfAbsent(a.getId(),
+                id -> new SimpleObjectProperty<>(resolveStatus(a)));
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+
     @FXML
     public void initialize() {
         setupNavBar();
         setupTable();
         connectWebSocket();
-        filterAll(); // tab mặc định
+        filterAll();
     }
 
     private void setupNavBar() {
@@ -80,23 +120,34 @@ public class AuctionListController {
     private void setupTable() {
         colId.setCellValueFactory(c ->
                 new SimpleStringProperty(String.valueOf(c.getValue().getId())));
+
         colName.setCellValueFactory(c ->
                 new SimpleStringProperty(c.getValue().getName()));
+
+        // Bind trực tiếp vào price property — cập nhật tức thì khi NEW_BID đến
         colPrice.setCellValueFactory(c ->
-                new SimpleStringProperty(CURRENCY.format(c.getValue().getCurrentPrice().longValue()) + "₫"));
+                getPriceProp(c.getValue()).map(price ->
+                        price == null ? "—" : CURRENCY.format(price.longValue()) + "₫"));
+
+        // Bind vào bid count property
         colBids.setCellValueFactory(c ->
-                new SimpleStringProperty(String.valueOf(c.getValue().getTotalBids())));
+                getBidCountProp(c.getValue()).map(String::valueOf));
+
+        // Bind vào status property — cập nhật khi AUCTION_STARTED / CLOSED
         colStatus.setCellValueFactory(c ->
-                new SimpleStringProperty(translateStatus(resolveStatus(c.getValue()))));
+                getStatusProp(c.getValue()).map(this::translateStatus));
+
         colEndTime.setCellValueFactory(c -> {
             if (c.getValue().getEndTime() == null) return new SimpleStringProperty("—");
             return new SimpleStringProperty(c.getValue().getEndTime().format(DTF));
         });
+
         colSeller.setCellValueFactory(c -> {
             UserDto seller = c.getValue().getSeller();
             return new SimpleStringProperty(seller != null ? seller.getUsername() : "—");
         });
 
+        // Row style theo trạng thái — bind vào statusProp để tự cập nhật
         tblAuctions.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(AuctionDto item, boolean empty) {
@@ -139,10 +190,7 @@ public class AuctionListController {
         activeFilter = this::filterAll;
         runAsync(() -> {
             List<AuctionDto> list = api.getAllAuctions();
-            Platform.runLater(() -> {
-                auctionData.setAll(list);
-                lblCount.setText(list.size() + " phiên");
-            });
+            Platform.runLater(() -> loadData(list, list.size() + " phiên"));
         });
     }
 
@@ -151,13 +199,9 @@ public class AuctionListController {
         lblPageTitle.setText("Đang diễn ra");
         activeFilter = this::filterRunning;
         runAsync(() -> {
-            List<AuctionDto> list = api.getAllAuctions();
-            List<AuctionDto> filtered = list.stream()
+            List<AuctionDto> filtered = api.getAllAuctions().stream()
                     .filter(a -> "RUNNING".equals(resolveStatus(a))).toList();
-            Platform.runLater(() -> {
-                auctionData.setAll(filtered);
-                lblCount.setText(filtered.size() + " phiên");
-            });
+            Platform.runLater(() -> loadData(filtered, filtered.size() + " phiên"));
         });
     }
 
@@ -166,13 +210,9 @@ public class AuctionListController {
         lblPageTitle.setText("Sắp diễn ra");
         activeFilter = this::filterOpen;
         runAsync(() -> {
-            List<AuctionDto> list = api.getAllAuctions();
-            List<AuctionDto> filtered = list.stream()
+            List<AuctionDto> filtered = api.getAllAuctions().stream()
                     .filter(a -> "OPEN".equals(resolveStatus(a))).toList();
-            Platform.runLater(() -> {
-                auctionData.setAll(filtered);
-                lblCount.setText(filtered.size() + " phiên");
-            });
+            Platform.runLater(() -> loadData(filtered, filtered.size() + " phiên"));
         });
     }
 
@@ -181,16 +221,12 @@ public class AuctionListController {
         lblPageTitle.setText("Đã kết thúc");
         activeFilter = this::filterFinished;
         runAsync(() -> {
-            List<AuctionDto> list = api.getAllAuctions();
-            List<AuctionDto> filtered = list.stream()
+            List<AuctionDto> filtered = api.getAllAuctions().stream()
                     .filter(a -> {
                         String s = resolveStatus(a);
                         return "FINISHED".equals(s) || "PAID".equals(s) || "CANCELED".equals(s);
                     }).toList();
-            Platform.runLater(() -> {
-                auctionData.setAll(filtered);
-                lblCount.setText(filtered.size() + " phiên");
-            });
+            Platform.runLater(() -> loadData(filtered, filtered.size() + " phiên"));
         });
     }
 
@@ -199,15 +235,12 @@ public class AuctionListController {
         lblPageTitle.setText("Lịch sử bid của tôi");
         activeFilter = this::showMyBids;
         runAsync(() -> {
-            List<BidDto> bids = api.getMyBids();
-            List<Long> ids = bids.stream().map(BidDto::getAuctionId).distinct().toList();
+            List<Long> ids = api.getMyBids().stream()
+                    .map(BidDto::getAuctionId).distinct().toList();
             List<AuctionDto> auctions = ids.stream()
                     .map(id -> { try { return api.getAuction(id); } catch (Exception e) { return null; } })
                     .filter(a -> a != null).toList();
-            Platform.runLater(() -> {
-                auctionData.setAll(auctions);
-                lblCount.setText(auctions.size() + " phiên");
-            });
+            Platform.runLater(() -> loadData(auctions, auctions.size() + " phiên"));
         });
     }
 
@@ -217,11 +250,24 @@ public class AuctionListController {
         activeFilter = this::showMySales;
         runAsync(() -> {
             List<AuctionDto> list = api.getMySales();
-            Platform.runLater(() -> {
-                auctionData.setAll(list);
-                lblCount.setText(list.size() + " phiên");
-            });
+            Platform.runLater(() -> loadData(list, list.size() + " phiên"));
         });
+    }
+
+    /**
+     * Load dữ liệu mới vào bảng: sync lại property map rồi setAll.
+     * Phải chạy trên FX thread.
+     */
+    private void loadData(List<AuctionDto> list, String countText) {
+        // Sync property map với dữ liệu mới nhất từ server
+        for (AuctionDto a : list) {
+            if (a.getId() == null) continue;
+            getPriceProp(a).set(a.getCurrentPrice());
+            getBidCountProp(a).set(a.getTotalBids());
+            getStatusProp(a).set(resolveStatus(a));
+        }
+        auctionData.setAll(list);
+        lblCount.setText(countText);
     }
 
     // ── Toolbar ──────────────────────────────────────────────────────────────
@@ -229,20 +275,15 @@ public class AuctionListController {
     @FXML public void handleSearch() {
         String keyword = txtSearch.getText().trim();
         if (keyword.isEmpty()) { filterAll(); return; }
-        // Tìm kiếm không thuộc filter nào → bỏ active hết
         setActiveSidebarBtn(null);
         lblPageTitle.setText("Kết quả tìm kiếm: \"" + keyword + "\"");
         activeFilter = this::handleSearch;
         runAsync(() -> {
             List<AuctionDto> list = api.searchAuctions(keyword);
-            Platform.runLater(() -> {
-                auctionData.setAll(list);
-                lblCount.setText(list.size() + " kết quả");
-            });
+            Platform.runLater(() -> loadData(list, list.size() + " kết quả"));
         });
     }
 
-    /** Refresh lại đúng tab đang active, không nhảy về tab khác */
     @FXML public void handleRefresh() {
         if (activeFilter != null) activeFilter.run();
         lblStatus.setText("Đã cập nhật");
@@ -306,9 +347,11 @@ public class AuctionListController {
 
         globalObserver = event -> {
             switch (event.getType()) {
-                case NEW_BID, AUCTION_STARTED, AUCTION_CLOSED,
-                     AUCTION_CANCELED                         -> updateAuctionRow(event);
-                case AUCTION_CREATED                          -> addNewAuctionRow(event);
+                case NEW_BID         -> handleNewBidEvent(event);
+                case AUCTION_STARTED -> handleStatusChangeEvent(event, "RUNNING");
+                case AUCTION_CLOSED  -> handleStatusChangeEvent(event, "FINISHED");
+                case AUCTION_CANCELED -> handleStatusChangeEvent(event, "CANCELED");
+                case AUCTION_CREATED -> addNewAuctionRow(event);
             }
             setWsStatus("● Trực tiếp", "ws-dot-live");
         };
@@ -342,23 +385,77 @@ public class AuctionListController {
     }
 
     /**
-     * Phiên mới vừa được seller tạo → fetch đầy đủ từ API rồi thêm vào đầu list.
-     * Chạy trên FX thread (đảm bảo bởi EventBus.publish).
+     * Xử lý NEW_BID event — cập nhật giá và số lượt bid tức thì.
+     *
+     * Cơ chế: set giá trị mới vào SimpleObjectProperty → TableView đang bind
+     * vào property này tự động re-render cell giá và cell số bid ngay lập tức,
+     * không cần gọi tblAuctions.refresh().
+     *
+     * Chạy trên FX thread (đảm bảo bởi AuctionEventBus.publish).
+     */
+    private void handleNewBidEvent(AuctionEvent event) {
+        Long id = event.getAuctionId();
+
+        // Cập nhật price property → colPrice tự refresh
+        SimpleObjectProperty<BigDecimal> priceProp = priceProps.get(id);
+        if (priceProp != null) priceProp.set(event.getCurrentPrice());
+
+        // Cập nhật bid count property → colBids tự refresh
+        SimpleObjectProperty<Long> bidProp = bidCountProps.get(id);
+        if (bidProp != null) bidProp.set(event.getTotalBids());
+
+        // Sync lại AuctionDto để các thao tác khác (double-click, filter) nhận đúng giá
+        auctionData.stream()
+                .filter(a -> id.equals(a.getId()))
+                .findFirst()
+                .ifPresent(a -> {
+                    a.setCurrentPrice(event.getCurrentPrice());
+                    a.setTotalBids(event.getTotalBids());
+                    if (event.getEndTime() != null) a.setEndTime(event.getEndTime());
+                });
+    }
+
+    /**
+     * Xử lý status change (STARTED / CLOSED / CANCELED).
+     * Cập nhật status property → colStatus và row style tự refresh.
+     */
+    private void handleStatusChangeEvent(AuctionEvent event, String newStatus) {
+        Long id = event.getAuctionId();
+
+        SimpleObjectProperty<String> statusProp = statusProps.get(id);
+        if (statusProp != null) statusProp.set(newStatus);
+
+        auctionData.stream()
+                .filter(a -> id.equals(a.getId()))
+                .findFirst()
+                .ifPresent(a -> {
+                    a.setStatus(newStatus);
+                    if (event.getEndTime() != null) a.setEndTime(event.getEndTime());
+                });
+
+        // Row style không bind vào property nên vẫn cần refresh để updateItem() chạy lại
+        tblAuctions.refresh();
+    }
+
+    /**
+     * Phiên mới được tạo → fetch đầy đủ từ API rồi thêm vào đầu list.
      */
     private void addNewAuctionRow(AuctionEvent event) {
         boolean exists = auctionData.stream()
-                .anyMatch(a -> a.getId() != null && a.getId() == event.getAuctionId());
+                .anyMatch(a -> a.getId() != null && a.getId().equals(event.getAuctionId()));
         if (exists) return;
 
         Thread t = new Thread(() -> {
             try {
                 AuctionDto dto = api.getAuction(event.getAuctionId());
                 Platform.runLater(() -> {
-                    // Kiểm tra filter hiện tại có cho phép phiên này không
-                    if (shouldShowInCurrentFilter(dto)) {
-                        auctionData.add(0, dto);
-                        lblCount.setText(auctionData.size() + " phiên");
-                    }
+                    if (!shouldShowInCurrentFilter(dto)) return;
+                    // Init properties cho phiên mới trước khi add vào list
+                    getPriceProp(dto).set(dto.getCurrentPrice());
+                    getBidCountProp(dto).set(dto.getTotalBids());
+                    getStatusProp(dto).set(resolveStatus(dto));
+                    auctionData.add(0, dto);
+                    lblCount.setText(auctionData.size() + " phiên");
                 });
             } catch (Exception e) {
                 System.err.println("[AuctionList] Cannot fetch new auction: " + e.getMessage());
@@ -368,12 +465,9 @@ public class AuctionListController {
         t.start();
     }
 
-    /** Trả về true nếu phiên dto phù hợp với filter tab hiện tại */
     private boolean shouldShowInCurrentFilter(AuctionDto dto) {
         if (activeFilter == null) return true;
         String resolved = resolveStatus(dto);
-        // So sánh bằng method reference identity không đáng tin cậy —
-        // dùng lblPageTitle để nhận biết tab đang active
         String title = lblPageTitle.getText();
         return switch (title) {
             case "Tất cả phiên đấu giá"  -> true;
@@ -383,30 +477,8 @@ public class AuctionListController {
                     || "PAID".equals(resolved) || "CANCELED".equals(resolved);
             case "Sản phẩm của tôi"       -> dto.getSeller() != null
                     && dto.getSeller().getUsername().equals(session.getUsername());
-            default -> true; // tìm kiếm hoặc lịch sử bid → không push realtime
+            default -> true;
         };
-    }
-
-    private void updateAuctionRow(AuctionEvent event) {
-        for (AuctionDto a : auctionData) {
-            if (a.getId() != null && a.getId() == event.getAuctionId()) {
-                // Cập nhật giá và số lượt bid
-                a.setCurrentPrice(event.getCurrentPrice());
-                a.setTotalBids(event.getTotalBids());
-                if (event.getEndTime() != null) a.setEndTime(event.getEndTime());
-
-                // Cập nhật status field để resolveStatus() render đúng ngay lập tức
-                switch (event.getType()) {
-                    case AUCTION_STARTED  -> a.setStatus("RUNNING");
-                    case AUCTION_CLOSED   -> a.setStatus("FINISHED");
-                    case AUCTION_CANCELED -> a.setStatus("CANCELED");
-                    default -> {} // NEW_BID: giữ nguyên status
-                }
-                break;
-            }
-        }
-        // refresh() kích hoạt cellValueFactory chạy lại → resolveStatus() được gọi lại
-        tblAuctions.refresh();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
