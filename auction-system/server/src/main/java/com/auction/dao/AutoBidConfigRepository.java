@@ -16,6 +16,13 @@ public interface AutoBidConfigRepository extends JpaRepository<AutoBidConfig, Lo
 
     Optional<AutoBidConfig> findByBidderAndAuctionItem(User bidder, AuctionItem item);
 
+    /**
+     * Trả về tất cả config active của phiên, NGOẠI TRỪ người đang dẫn đầu,
+     * sắp xếp theo createdAt ASC — người đăng ký auto-bid SỚM hơn được ưu tiên.
+     *
+     * Việc sắp xếp ở DB thay vì trong PriorityQueue giúp tránh load toàn bộ
+     * dữ liệu lên memory rồi mới sort.
+     */
     @Query("""
             SELECT c FROM AutoBidConfig c
             WHERE c.auctionItem = :item
