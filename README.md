@@ -1,330 +1,67 @@
-OK, vậy chúng ta bắt đầu dự án Auction System, một hệ thống đấu giá bằng web app. Vì tất cả đều là newbie, chúng ta sẽ xem xét dự án dưới góc nhìn đơn giản nhất
 
-1. Tổng quan
-    Auction System là một hệ thống đấu giá trực tuyến
-    Đi theo hướng Auction Real-time - Đấu giá thời gian thực
+Auction System
+Dự án xây dựng một hệ thống đấu giá trực tuyến thời gian thực (Real-time Online Auction System), cho phép người bán đăng sản phẩm đấu giá và người mua tham gia trả giá thông qua giao diện web/desktop. Hệ thống được phát triển theo mô hình client–server, hỗ trợ nhiều vai trò người dùng, đảm bảo tính công bằng trong đấu giá và cập nhật dữ liệu theo thời gian thực.
 
-2. Mô hình 
-    a. Đối tượng
-        Đối tượng của web app này gồm 2 nhóm chính: Bidder (người đấu giá) và Seller (người bán sản phẩm đấu giá)
-    b. Hành vi riêng của đối tượng
-        - Bidder: 
-            + Xem sản phẩm
-            + Đặt giá 
-            + Theo dõi kết quả
-            ...
-        - Seller:
-            + Đăng sản phẩm
-            + Đặt giá khởi điểm
-            + Set thời gian kết thúc đấu giá 
-            ...
-    c. Hành vi chung của User
-        Tất cả Bidder và Seller đều là User với các hành vi: 
-            + Đăng ký, đăng nhập
-            + Thao tác với GUI 
-            + Tham gia phiên đấu giá
-            ...
+Phạm vi hệ thống:
 
+- Quản lý người dùng và phân quyền (Admin/Seller/Bidder).
+- Quản lý sản phẩm đấu giá và vòng đời phiên đấu giá.
+- Xử lý nghiệp vụ đấu giá thời gian thực.
+- Hỗ trợ xác thực, bảo mật và quản trị hệ thống.
+- Giao tiếp client–server qua REST API và WebSocket.
 
-3. Những việc cần làm
-    a. Xây dựng các chức năng cơ bản của một Auction Web App
-        + Quản lý người dùng: User là Bidder, Seller hay Admin?
-        + Quản lý sản phẩm được đấu giá: 
-            - Thêm, sửa, xoá sản phẩm
-            - Các thông tin của sản phẩm:
-                - Tên, mô tả, giá khởi điểm
-                - Giá hiện tại
-                - Thời gian bắt đầu, kết thúc phiên đấu sản phẩm này
-        + Tham gia đấu giá:
-            - Mô hình đấu giá cổ điển: đặt giá, người khác đặt cao hơn, đặt tiếp ... 
-            - Kiểm tra tính logic của các phép đặt (giá không được thấp hơn hoặc bằng giá hiện tại và không được cao hơn số dư tài khoản của mình ...)
-            - Cập nhật người dẫn đầu, giá cao nhất, ..
-        + Kết thúc đấu giá: 
-            - Chốt giá cuối cùng
-            - Xác định người thắng
-        + Giao diện - GUI
-            - Sử dụng JavaFX (tích hợp CSS là đẹp nhất)
-            - Khung giao diện 
-                - Trang chủ: gồm logo app, login, tìm kiếm sản phẩm, danh sách sản phẩm đấu giá ở mức preview ...
-                - Danh sách sản phẩm: thông tin chi tiết về sản phẩm, phiên đấu giá, ...
-                - Chi tiết sản phẩm - màn hình đấu giá (phiên đấu giá): mọi thông tin về sản phẩm cũng như trạng thái đấu giá
-                - Một số frame riêng: trang "Quản lý sản phẩm" cho Seller, 
-            - Dark Mode, tối ưu tốc độ load frontend ...
-        + Các chức năng khác: sẽ phát triển và cập nhật thêm
-    b. Cấu trúc
-        Dưới đây là cấu trúc ví dụ của một auction system cơ bản
-           auction-system/
-           │
-           ├── client/
-           │   ├── pom.xml
-           │   └── src/
-           │       └── main/
-           │           ├── java/com/example/auctionfx/
-           │           │   ├── AuctionFXApplication.java
-           │           │   │
-           │           │   ├── config/
-           │           │   │   └── AppConfig.java
-           │           │   │
-           │           │   ├── controller/
-           │           │   │   ├── MainController.java
-           │           │   │   ├── LoginController.java
-           │           │   │   └── AuctionDetailController.java
-           │           │   │
-           │           │   ├── service/
-           │           │   │   └── ApiService.java
-           │           │   │
-           │           │   ├── model/
-           │           │   │   ├── User.java
-           │           │   │   ├── Auction.java
-           │           │   │   └── Bid.java
-           │           │   │
-           │           │   ├── dto/
-           │           │   │   ├── LoginRequest.java
-           │           │   │   ├── BidRequest.java
-           │           │   │   └── AuctionResponse.java
-           │           │   │
-           │           │   └── util/
-           │           │       ├── HttpClientUtil.java
-           │           │       └── SessionManager.java
-           │           │
-           │           └── resources/
-           │               └── com/example/auctionfx/view/
-           │                   ├── login.fxml
-           │                   ├── main.fxml
-           │                   └── auction-detail.fxml
-           │
-           ├── server/
-           │   ├── pom.xml
-           │   └── src/
-           │       ├── main/
-           │       │   ├── java/com/example/auction/
-           │       │   │   ├── AuctionApplication.java
-           │       │   │   │
-           │       │   │   ├── config/
-           │       │   │   │   ├── WebConfig.java
-           │       │   │   │   └── OpenApiConfig.java
-           │       │   │   │
-           │       │   │   ├── security/
-           │       │   │   │   ├── SecurityConfig.java
-           │       │   │   │   ├── JwtFilter.java
-           │       │   │   │   └── JwtUtil.java
-           │       │   │   │
-           │       │   │   ├── controller/
-           │       │   │   │   ├── AuthController.java
-           │       │   │   │   ├── AuctionController.java
-           │       │   │   │   └── BidController.java
-           │       │   │   │
-           │       │   │   ├── service/
-           │       │   │   │   ├── UserService.java
-           │       │   │   │   ├── AuctionService.java
-           │       │   │   │   └── BidService.java
-           │       │   │   │
-           │       │   │   ├── repository/
-           │       │   │   │   ├── UserRepository.java
-           │       │   │   │   ├── AuctionRepository.java
-           │       │   │   │   └── BidRepository.java
-           │       │   │   │
-           │       │   │   ├── model/
-           │       │   │   │   ├── User.java
-           │       │   │   │   ├── Auction.java
-           │       │   │   │   └── Bid.java
-           │       │   │   │
-           │       │   │   ├── dto/
-           │       │   │   │   ├── LoginRequest.java
-           │       │   │   │   ├── BidRequest.java
-           │       │   │   │   └── AuctionResponse.java
-           │       │   │   │
-           │       │   │   ├── enums/
-           │       │   │   │   ├── Role.java
-           │       │   │   │   └── AuctionStatus.java
-           │       │   │   │
-           │       │   │   ├── exception/
-           │       │   │   │   ├── GlobalExceptionHandler.java
-           │       │   │   │   └── CustomException.java
-           │       │   │   │
-           │       │   │   └── validation/
-           │       │   │       └── CustomValidator.java
-           │       │   │
-           │       │   └── resources/
-           │       │       ├── application.yml
-           │       │       ├── application-dev.yml
-           │       │       ├── application-prod.yml
-           │       │       ├── logback-spring.xml
-           │       │       └── db/migration/
-           │       │           ├── V1__init.sql
-           │       │           └── V2__add_bid.sql
-           │       │
-           │       └── test/
-           │           └── java/com/example/auction/
-           │               ├── controller/
-           │               │   └── AuctionControllerTest.java
-           │               └── service/
-           │                   └── AuctionServiceTest.java
-           │
-           ├── docs/
-           │   ├── architecture.md
-           │   └── api.md
-           │
-           ├── docker/
-           │   ├── Dockerfile
-           │   └── docker-compose.yml
-           │
-           └── README.md
-    
-    c. Phân công công việc
-        Có 4 mảng chính: 
-            + Backend
-            + Frontend  
-            + Database
-            + Realtime
-        Để cả 4 người có phần công việc tương đương nhau, sẽ phân công công việc giàn trải theo cả 4 mảng cho mỗi người:
-        =====================================
-                A - Nguyễn Văn Mạnh
-                B - Đặng Gia Hưng
-                C - Dương Văn Huy 
-                D - Lê Công Nhật
-        =====================================
+I. Các chức năng chính đã hoàn thành:
+
+1. Quản lý tài khoản và xác thực
+   - Đăng ký, đăng nhập.
+   - Xác thực bằng JWT.
+   - Quản lý hồ sơ người dùng và số dư tài khoản.
+
+2. Quản lý đấu giá
+   - Tạo, sửa, xoá sản phẩm đấu giá.
+   - Xem danh sách đấu giá và chi tiết sản phẩm.
+   - Quản lý trạng thái phiên đấu giá (mở, đóng, kích hoạt tự động).
+
+3. Chức năng đặt giá
+   - Đặt giá trực tiếp.
+   - Kiểm tra tính hợp lệ của bid.
+   - Lưu lịch sử đấu giá và truy vấn bid của người dùng.
+
+4. Đấu giá tự động (Auto Bid / Proxy Bid)
+   - Thiết lập mức đấu giá tự động.
+   - Tự động nâng giá khi có cạnh tranh.
+   - Huỷ cấu hình auto bid.
+
+5. Cập nhật thời gian thực
+   - Đồng bộ thông tin đấu giá bằng WebSocket.
+   - Thông báo khi phiên đấu giá bắt đầu/kết thúc.
+
+6. Quản trị hệ thống
+   - Quản lý người dùng.
+   - Khoá/mở tài khoản.
+   - Quản lý phiên đấu giá và xác nhận thanh toán.
+
+7. Kiểm thử
+   - Unit test cho các service chính: User, Auction, Bid và AutoBid.
 
 
-        A - Backend – Auction Core
-        Quản lý phiên đấu giá (CRUD), lịch sử đấu giá, tìm kiếm và lọc
-
-        B - Backend – Bidding Logic và Real-time
-        Proxy bidding, anti-sniping, WebSocket
-
-        C - Frontend – JavaFX
-        Toàn bộ giao diện người dùng, kết nối API, hiển thị real-time
-
-        D - Backend – User và dịch vụ cơ bản
-        Đăng ký, đăng nhập, phân quyền, ví cơ bản, đánh giá sản phẩm
-
-        ------------------------------ ---------------------------------------------------------
-
-        a. A – Backend Auction Core và Data API
-            1. Thiết kế database schema cho Auction, Bid, Category (nếu có)
-            2. API CRUD Auction
-                Tạo auction mới (tiêu đề, mô tả, giá khởi điểm, thời gian kết thúc, ảnh)
-                Sửa auction (chỉ khi chưa có bid)
-                Xóa auction (chỉ khi chưa có bid)
-            3. API lấy danh sách auction
-                Phân trang (page, size)
-                Lọc theo trạng thái
-                Sắp xếp theo giá và thời gian
-                Tìm kiếm theo từ khóa
-            4. API chi tiết auction kèm danh sách bid gần nhất
-            5. API lịch sử đấu giá của một auction
-            6. Scheduled task tự động kết thúc auction
-            7. Viết unit test cho service
-
-            *Công nghệ (tham khảo):
-                Spring Data JPA, PostgreSQL
-                Spring MVC
-                JUnit, Mockito
-
-        b. B – Backend Bidding Logic và Real-time
-            1. Proxy bidding
-                Cho phép đặt giá tối đa
-                Tự động tăng giá theo bước
-                Xử lý race condition bằng lock
-            2. Anti-sniping
-                Nếu có bid trong X giây cuối thì gia hạn Y phút
-            3. WebSocket real-time
-                Thiết lập WebSocket STOMP
-                Broadcast giá hiện tại và người đấu cao nhất
-                Gửi thông báo khi bị vượt giá
-            4. Xác định người thắng
-            5. Viết unit test cho logic đồng thời
-
-            *Công nghệ (gợi ý)
-                Spring WebSocket, STOMP
-                Spring Scheduling
-                Java concurrency hoặc Redis
-
-        c. C – Frontend JavaFX
-            1. Màn hình đăng nhập và đăng ký
-            2. Màn hình danh sách auction
-                TableView
-                Tìm kiếm, lọc, phân trang
-                Refresh định kỳ hoặc WebSocket
-            3. Màn hình chi tiết auction
-                Hiển thị thông tin
-                Đồng hồ đếm ngược
-                Form đặt giá và proxy
-                Lịch sử đấu giá
-                Cập nhật real-time
-            4. Màn hình cá nhân
-                Profile
-                Auction đã đăng
-                Auction đã tham gia
-            5. Xử lý lỗi hiển thị
-
-            *Công nghệ
-                JavaFX (FXML, CSS)
-                HttpClient hoặc OkHttp
-                WebSocket client
+II. Công nghệ sử dụng, môi trường chạy và yêu cầu cài đặt
+    1. Công nghệ sử dụng
+        - Backend: Java
+        - Framework backend: Springboot
+        - Database: SQLite
+        - ORM: Spring Data JPA / Hibernate
+        - Authentication: JWT
+        - Real-time Communication: WebSocket
+        - Build tool: Maven
+        - Testing: JUnit
+        - API Testing: Postman
+        - Version Control: Git
+    2. Môi trường chạy
+        - OS: Window, macOS, Linux 
+        - Java Dev Kit: JDK 21+
+        - IDE: IntelliJ IDEA, VSCode hoặc Eclipse 
+    3. Yêu cầu cài đặt
+        - JDK 21 trở lên
+        - Có cấu hình Apache Maven
         
-        d. D – Backend User và dịch vụ hỗ trợ
-            1. Xác thực và phân quyền
-                Đăng ký
-                Đăng nhập (JWT)
-                Role user và seller
-                Mã hóa mật khẩu
-            2. Profile
-                Cập nhật thông tin
-                Đổi mật khẩu
-            3. Ví cơ bản
-                Số dư user
-                Kiểm tra tiền khi đặt giá
-                API nạp tiền (admin)
-                Xem lịch sử giao dịch
-            4. Đánh giá
-                Người mua đánh giá người bán
-                Tính điểm trung bình
-            5. API admin
-                Nạp tiền
-                Khóa tài khoản
-                Xem danh sách user
-
-            #Công nghệ
-                Spring Security, JWT
-                Spring Data JPA
-                BCrypt
-
-
-        Bảng phân công: 
-            | Tuần  | Sprint                                   | Thành viên                 | Nhiệm vụ chi tiết                                                                                                                                         | Công nghệ / Công cụ                         | Đầu ra (Deliverable)                                                                 |
-            |-------|------------------------------------------|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------|--------------------------------------------------------------------------------------|
-            | 1–2   | Sprint 1: Khởi tạo & Xác thực            | Mạnh (Backend Auction)     | - Thiết kế model database (Auction, Bid)- Viết API GET /auctions- API GET /auctions/{id}- Tạo dữ liệu mẫu                                                 | Spring Boot, JPA, PostgreSQL, Postman       | - ERD- API chạy localhost- Postman collection                                        |
-            |       |                                          | Hưng (Backend Bidding)     | - Nghiên cứu WebSocket + STOMP- Setup WebSocket config- Endpoint /ws + broker- API POST /bids                                                             | Spring WebSocket, STOMP, Postman            | - WebSocket server chạy- API bid cơ bản                                              |
-            |       |                                          | Huy (Frontend JavaFX)      | - Setup JavaFX- Thiết kế Login- Kết nối API auth- BaseController + HttpClient wrapper, basic MVP: Bidder                                                  | JavaFX, FXML, CSS, HttpClient               | - UI login/register- Flow xác thực hoạt động                                         |
-            |       |                                          | Nhật (Backend User)        | - Spring Security + JWT- API đăng ký/đăng nhập- API user hiện tại- Phân quyền USER, SELLER                                                                | Spring Security, JWT, BCrypt                | - Auth JWT hoạt động- API user profile                                               |
-            | 3–4   | Sprint 2: Core Auction Features          | Mạnh                       | - CRUD auction- Tìm kiếm, lọc- Phân trang- Scheduled kết thúc auction                                                                                     | Spring Data JPA, @Scheduled                 | - CRUD hoàn chỉnh- Filter + pagination                                               |
-            |       |                                          | Hưng                       | - Proxy Bidding- Xử lý race condition- WebSocket push bid realtime                                                                                        | Java concurrency, Spring WebSocket          | - Proxy bidding chạy- Realtime update                                                |
-            |       |                                          | Huy                        | - UI danh sách auction- Kết nối API- WebSocket client realtime                                                                                            | JavaFX, WebSocket Client                    | - UI chính hoàn chỉnh- Realtime giá                                                  |
-            |       |                                          | Nhật                       | - Nâng cấp SELLER- Quản lý profile- API nạp tiền                                                                                                          | Spring Security, JPA                        | - User lên SELLER- Admin nạp tiền                                                    |
-            | 5–6   | Sprint 3: Nâng cao & Hoàn thiện nghiệp vụ| Mạnh                       | - Lịch sử đấu giá- Auction của user- Tối ưu DB- Unit test                                                                                                 | JUnit, Mockito, Spring Data JPA             | - API lịch sử- Dashboard user                                                        |
-            |       |                                          | Hưng                       | - Anti-sniping- WebSocket gia hạn- Xác định winner- Unit test logic                                                                                       | Spring Scheduling, JUnit                    | - Anti-sniping chạy- Auto kết thúc auction                                           |
-            |       |                                          | Huy                        | - UI chi tiết auction- Form bid & proxy- Bảng lịch sử- Xử lý WebSocket                                                                                    | JavaFX, Timeline, WebSocket                 | - UI chi tiết hoàn chỉnh- Bid realtime                                               |
-            |       |                                          | Nhật                       | - Hệ thống đánh giá- API rating- Admin UI cơ bản                                                                                                          | JPA, Spring MVC                             | - Rating hoạt động- Admin UI                                                         |
-            | 7–8   | Sprint 4: Tích hợp, Kiểm thử & Hoàn thiện| Cả nhóm                    | - A: Tối ưu API, Swagger- B: Test tải, fix concurrency- C: UI/UX- D: Hoàn thiện admin- E2E test- README                                                   | Toàn bộ stack                               | - App hoàn chỉnh- Swagger UI- Báo cáo dự án                                          |
-
-        ---------------------------------------------------------------------
-
-
-            
-    
-
-
-    
-        
-
-
-
-
-
-
-
-
-
-
-
