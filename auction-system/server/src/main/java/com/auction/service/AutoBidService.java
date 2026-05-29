@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.locks.ReentrantLock;
@@ -80,66 +81,71 @@ public class AutoBidService {
         lock.lock();
         try {
             AuctionItem freshItem = auctionService.findById(item.getId());
-
             if (!freshItem.isAcceptingBids()) return;
 
-            User leader = currentLeader;
-            if (leader == null) {
-                List<Dto.BidResponse> history = bidService.getBidHistory(freshItem.getId());
-                if (!history.isEmpty()) {
-                    leader = userService.findByUsername(history.get(0).bidder().username());
-                }
-            }
+            User leader = resolveLeader(currentLeader, freshItem);
 
             List<AutoBidConfig> configs = configRepo.findActiveConfigsExcluding(freshItem, leader);
             if (configs.isEmpty()) return;
 
-            PriorityQueue<AutoBidConfig> pq = new PriorityQueue<>(
-                    (c1, c2) -> c2.getMaxAmount().compareTo(c1.getMaxAmount())
-            );
-            pq.addAll(configs);
+            PriorityQueue<AutoBidConfig> queue = buildPriorityQueue(configs);
 
-            while (!pq.isEmpty()) {
-                AutoBidConfig winner = pq.poll();
-                AutoBidConfig runnerUp = pq.peek();
+            AutoBidConfig best = queue.poll();
+            if (best == null) return;
 
-                BigDecimal basePrice = freshItem.getCurrentPrice();
-                if (runnerUp != null && runnerUp.getMaxAmount().compareTo(basePrice) > 0) {
-                    basePrice = runnerUp.getMaxAmount();
+            BigDecimal nextBid = freshItem.getCurrentPrice().add(best.getIncrement());
+
+            if (nextBid.compareTo(best.getMaxAmount()) > 0) {
+                log.info("AutoBid maxAmount reached: bidder={} auction={} maxAmount={}",
+                        best.getBidder().getUsername(), freshItem.getId(), best.getMaxAmount());
+                deactivateConfig(best);
+
+                best = queue.poll();
+                if (best == null) return;
+                nextBid = freshItem.getCurrentPrice().add(best.getIncrement());
+                if (nextBid.compareTo(best.getMaxAmount()) > 0) {
+                    deactivateConfig(best);
+                    return;
                 }
-
-                BigDecimal nextBid = basePrice.add(winner.getIncrement());
-
-                // Nếu nhảy vượt quá maxAmount của mình, thì chỉ đặt giá bằng đúng maxAmount
-                if (nextBid.compareTo(winner.getMaxAmount()) > 0) {
-                    nextBid = winner.getMaxAmount();
-                }
-
-                // Tuy nhiên, giá đặt phải luôn thỏa mãn mức giá tối thiểu của phiên
-                BigDecimal minAllowedBid = freshItem.getCurrentPrice().add(freshItem.getMinIncrement());
-                if (nextBid.compareTo(minAllowedBid) < 0) {
-                    deactivateConfig(winner);
-                    continue;
-                }
-
-                log.info("AutoBid trigger: bidder={} auction={} amount={}",
-                        winner.getBidder().getUsername(), freshItem.getId(), nextBid);
-
-                bidService.doPlaceBid(freshItem.getId(), nextBid,
-                        winner.getBidder().getUsername(), true);
-                break;
             }
+
+            log.info("AutoBid trigger: bidder={} auction={} amount={}",
+                    best.getBidder().getUsername(), freshItem.getId(), nextBid);
+            bidService.doPlaceBid(freshItem.getId(), nextBid,
+                    best.getBidder().getUsername(), true);
 
         } finally {
             lock.unlock();
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────────
+
+    private PriorityQueue<AutoBidConfig> buildPriorityQueue(List<AutoBidConfig> configs) {
+        Comparator<AutoBidConfig> comparator = Comparator
+                .comparing(AutoBidConfig::getMaxAmount).reversed()  // cao hơn → ưu tiên hơn
+                .thenComparing(AutoBidConfig::getCreatedAt);        // sớm hơn → ưu tiên hơn
+
+        PriorityQueue<AutoBidConfig> queue = new PriorityQueue<>(comparator);
+        queue.addAll(configs);
+        return queue;
+    }
+
+
+    private User resolveLeader(User currentLeader, AuctionItem item) {
+        if (currentLeader != null) return currentLeader;
+
+        List<Dto.BidResponse> history = bidService.getBidHistory(item.getId());
+        if (history.isEmpty()) return null;
+
+        return userService.findByUsername(history.get(0).bidder().username());
+    }
+
     @Transactional
     private void deactivateConfig(AutoBidConfig config) {
         config.setActive(false);
         configRepo.save(config);
-        log.info("AutoBid maxAmount reached: bidder={} auction={}",
-                config.getBidder().getUsername(), config.getAuctionItem().getId());
     }
 }

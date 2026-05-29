@@ -21,6 +21,7 @@ public interface AutoBidConfigRepository extends JpaRepository<AutoBidConfig, Lo
             WHERE c.auctionItem = :item
               AND c.isActive = true
               AND (:leader IS NULL OR c.bidder != :leader)
+            ORDER BY c.createdAt ASC
             """)
     List<AutoBidConfig> findActiveConfigsExcluding(@Param("item") AuctionItem item,
                                                    @Param("leader") User leader);
