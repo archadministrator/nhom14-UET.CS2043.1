@@ -114,7 +114,6 @@ public class LoginController {
         lblError.setManaged(false);
     }
 
-    /** Swap CSS style classes for active / inactive tab appearance */
     private void setActiveTab(Button active, Button inactive) {
         active.getStyleClass().removeAll("tab-btn-inactive");
         if (!active.getStyleClass().contains("tab-btn-active"))

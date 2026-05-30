@@ -11,13 +11,11 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<!-- Login screen — Spotify dark theme -->
 <StackPane xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.auction.client.controller.LoginController"
            styleClass="login-screen"
            stylesheets="@../css/main.css">
 
-    <!-- Background pattern (subtle dot texture via nested pane) -->
     <Pane styleClass="login-screen"/>
 
     <!-- Centered card -->
@@ -70,7 +68,7 @@
                     </VBox>
                 </VBox>
 
-                <!-- REGISTER FIELDS (hidden by default) -->
+                <!-- REGISTER FIELDS  -->
                 <VBox fx:id="registerFields" spacing="16" visible="false" managed="false">
                     <VBox spacing="6">
                         <Label text="TÊN ĐĂNG NHẬP" styleClass="field-label"/>

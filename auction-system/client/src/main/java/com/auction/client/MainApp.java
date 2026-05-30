@@ -15,10 +15,8 @@ public class MainApp extends Application {
     public void start(Stage primaryStage) throws Exception {
         Parent root = FXMLLoader.load(getClass().getResource("/fxml/login.fxml"));
 
-        // Lấy kích thước vùng làm việc thực tế (trừ taskbar)
         javafx.geometry.Rectangle2D screen = Screen.getPrimary().getVisualBounds();
 
-        // Scene có kích thước bằng đúng vùng làm việc — không bị cắt
         Scene scene = new Scene(root, screen.getWidth(), screen.getHeight());
         var css = getClass().getResource("/css/main.css");
         if (css != null) scene.getStylesheets().add(css.toExternalForm());
@@ -29,7 +27,6 @@ public class MainApp extends Application {
         primaryStage.setMinWidth(600);
         primaryStage.setMinHeight(400);
 
-        // Đặt vị trí và kích thước stage khớp vùng làm việc
         primaryStage.setX(screen.getMinX());
         primaryStage.setY(screen.getMinY());
         primaryStage.setWidth(screen.getWidth());

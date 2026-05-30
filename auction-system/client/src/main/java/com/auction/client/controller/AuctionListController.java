@@ -124,16 +124,13 @@ public class AuctionListController {
         colName.setCellValueFactory(c ->
                 new SimpleStringProperty(c.getValue().getName()));
 
-        // Bind trực tiếp vào price property — cập nhật tức thì khi NEW_BID đến
         colPrice.setCellValueFactory(c ->
                 getPriceProp(c.getValue()).map(price ->
                         price == null ? "—" : CURRENCY.format(price.longValue()) + "₫"));
 
-        // Bind vào bid count property
         colBids.setCellValueFactory(c ->
                 getBidCountProp(c.getValue()).map(String::valueOf));
 
-        // Bind vào status property — cập nhật khi AUCTION_STARTED / CLOSED
         colStatus.setCellValueFactory(c ->
                 getStatusProp(c.getValue()).map(this::translateStatus));
 
@@ -147,7 +144,6 @@ public class AuctionListController {
             return new SimpleStringProperty(seller != null ? seller.getUsername() : "—");
         });
 
-        // Row style theo trạng thái — bind vào statusProp để tự cập nhật
         tblAuctions.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(AuctionDto item, boolean empty) {
@@ -254,10 +250,6 @@ public class AuctionListController {
         });
     }
 
-    /**
-     * Load dữ liệu mới vào bảng: sync lại property map rồi setAll.
-     * Phải chạy trên FX thread.
-     */
     private void loadData(List<AuctionDto> list, String countText) {
         // Sync property map với dữ liệu mới nhất từ server
         for (AuctionDto a : list) {

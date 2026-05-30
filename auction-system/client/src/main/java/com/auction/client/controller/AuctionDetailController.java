@@ -87,20 +87,197 @@ public class AuctionDetailController implements AuctionObserver {
         priceChart.setCreateSymbols(true);
     }
 
+    /**
+     * Entry point khi navigate từ AuctionList sang.
+     *
+     * Vấn đề của cách cũ (setAuction trực tiếp từ cached object):
+     *   1. Object AuctionDto được truyền vào là snapshot từ lần load AuctionList trước
+     *      → currentPrice, totalBids, endTime có thể đã lỗi thời vài giây đến vài phút.
+     *   2. subscribeRealtime() được gọi SAU khi fetch xong → race condition:
+     *      bid đến trong khoảng thời gian fetch bị bỏ lỡ hoàn toàn.
+     *
+     * Luồng đúng — Subscribe trước, fetch sau, merge:
+     *   Bước 1: render UI ngay với dữ liệu cũ (UX không bị trắng màn hình)
+     *   Bước 2: subscribe realtime NGAY LẬP TỨC → không bỏ lỡ event nào
+     *   Bước 3: fetch dữ liệu mới nhất từ server song song
+     *   Bước 4: fetch bid history song song
+     *   Bước 5: merge — áp dữ liệu mới lên UI, bảo toàn event realtime đã nhận
+     *            trong bước 2-3 (chúng đã update currentAuction trực tiếp)
+     */
     public void setAuction(AuctionDto auction) {
         this.currentAuction = auction;
+
         Platform.runLater(() -> {
-            populateInfo();
+            // Bước 1: render UI ngay với dữ liệu tạm — user thấy màn hình ngay
             setupBidTable();
             setupChart();
-            if (!session.isSeller()) {
-                loadBidHistory();
-            } else {
-                hideBidHistorySection();
-            }
+            populateInfo();
+            if (session.isSeller()) hideBidHistorySection();
+
+            // Bước 2: subscribe TRƯỚC KHI fetch — không bỏ lỡ event nào
             subscribeRealtime();
-            startCountdown();
+
+            // Bước 3 + 4: fetch fresh data và bid history song song
+            fetchFreshDataAndHistory();
         });
+    }
+
+    /**
+     * Fetch dữ liệu mới nhất từ server trên background thread.
+     *
+     * Dùng hai thread song song để giảm tổng thời gian chờ:
+     *   Thread A: GET /auctions/{id}     → dữ liệu phiên mới nhất
+     *   Thread B: GET /bids/auction/{id} → lịch sử bid
+     *
+     * Sau khi cả hai hoàn thành, merge vào UI trên FX thread.
+     * Nếu có realtime event đến TRONG LÚC đang fetch: chúng đã update
+     * currentAuction.currentPrice trực tiếp (qua handleNewBidEvent),
+     * nên khi mergeWithFreshData() chạy, nó so sánh và giữ giá cao hơn.
+     */
+    private void fetchFreshDataAndHistory() {
+        final long auctionId = currentAuction.getId();
+
+        // Dùng mảng để share kết quả giữa hai thread vào FX thread
+        final AuctionDto[] freshRef   = new AuctionDto[1];
+        final List<BidDto>[] histRef  = new List[1];
+        final String[] errorRef       = new String[1];
+
+        Thread fetchAuction = new Thread(() -> {
+            try {
+                freshRef[0] = api.getAuction(auctionId);
+            } catch (Exception e) {
+                errorRef[0] = "Không tải được dữ liệu phiên: " + e.getMessage();
+            }
+        }, "fetch-auction-" + auctionId);
+
+        Thread fetchHistory = new Thread(() -> {
+            try {
+                histRef[0] = api.getBidHistory(auctionId);
+            } catch (Exception e) {
+                // Lịch sử không load được chỉ là non-critical
+                histRef[0] = java.util.Collections.emptyList();
+            }
+        }, "fetch-history-" + auctionId);
+
+        fetchAuction.setDaemon(true);
+        fetchHistory.setDaemon(true);
+        fetchAuction.start();
+        fetchHistory.start();
+
+        // Thread gom kết quả — chờ cả hai xong rồi update UI
+        Thread merger = new Thread(() -> {
+            try {
+                fetchAuction.join(5000); // timeout 5s
+                fetchHistory.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            Platform.runLater(() -> {
+                if (errorRef[0] != null) {
+                    showBidMsg(errorRef[0], false);
+                } else if (freshRef[0] != null) {
+                    mergeWithFreshData(freshRef[0]);
+                }
+                if (histRef[0] != null && !session.isSeller()) {
+                    mergeWithHistory(histRef[0]);
+                }
+                startCountdown(); // bắt đầu đếm ngược sau khi đã có endTime mới nhất
+            });
+        }, "fetch-merger-" + auctionId);
+        merger.setDaemon(true);
+        merger.start();
+    }
+
+    /**
+     * Merge dữ liệu fresh từ server vào UI.
+     *
+     * Quy tắc merge — ưu tiên giá trị MỚI HƠN / CAO HƠN:
+     *   currentPrice: lấy max(freshData, currentAuction) vì realtime event
+     *                 có thể đã cập nhật currentAuction lên cao hơn freshData
+     *   totalBids:    lấy max(freshData, currentAuction) cùng lý do
+     *   endTime:      lấy giá trị sau hơn (anti-sniping có thể đã gia hạn)
+     *   status:       freshData luôn đúng hơn (server là source of truth)
+     *   các field tĩnh (name, description, seller...): luôn lấy từ freshData
+     *
+     * Phải chạy trên FX thread.
+     */
+    private void mergeWithFreshData(AuctionDto fresh) {
+        // Giữ giá cao hơn giữa fresh và những gì realtime đã cập nhật
+        BigDecimal mergedPrice = currentAuction.getCurrentPrice() != null
+                && currentAuction.getCurrentPrice().compareTo(fresh.getCurrentPrice()) > 0
+                ? currentAuction.getCurrentPrice()
+                : fresh.getCurrentPrice();
+
+        // totalBids là primitive long — không cần kiểm tra null
+        long mergedBids = Math.max(currentAuction.getTotalBids(), fresh.getTotalBids());
+
+        // endTime: lấy giá trị sau hơn (anti-sniping)
+        LocalDateTime mergedEnd = (currentAuction.getEndTime() != null
+                && fresh.getEndTime() != null
+                && currentAuction.getEndTime().isAfter(fresh.getEndTime()))
+                ? currentAuction.getEndTime()
+                : fresh.getEndTime();
+
+        // Áp các field tĩnh từ fresh
+        currentAuction.setName(fresh.getName());
+        currentAuction.setDescription(fresh.getDescription());
+        currentAuction.setSeller(fresh.getSeller());
+        currentAuction.setStartPrice(fresh.getStartPrice());
+        currentAuction.setMinIncrement(fresh.getMinIncrement());
+        currentAuction.setStartTime(fresh.getStartTime());
+        currentAuction.setWinner(fresh.getWinner());
+
+        // Áp các field đã merge
+        currentAuction.setCurrentPrice(mergedPrice);
+        currentAuction.setTotalBids(mergedBids);
+        currentAuction.setEndTime(mergedEnd);
+
+        // Status: fresh luôn là source of truth trừ khi realtime đã CLOSED/CANCELED
+        String currentStatus = currentAuction.getStatus();
+        boolean alreadyTerminated = "FINISHED".equals(currentStatus)
+                || "PAID".equals(currentStatus) || "CANCELED".equals(currentStatus);
+        if (!alreadyTerminated) currentAuction.setStatus(fresh.getStatus());
+
+        // Re-render toàn bộ UI với dữ liệu đã merge
+        populateInfo();
+    }
+
+    /**
+     * Merge lịch sử bid: thêm các bid chưa có trong bidData (từ realtime).
+     * Tránh duplicate bằng cách so sánh bid id.
+     */
+    private void mergeWithHistory(List<BidDto> history) {
+        if (history == null || history.isEmpty()) return;
+
+        java.util.Set<Long> existingIds = new java.util.HashSet<>();
+        for (BidDto b : bidData) {
+            if (b.getId() != null) existingIds.add(b.getId());
+        }
+
+        // Thêm các bid từ history mà chưa có trong bidData
+        // (bidData hiện tại chỉ chứa bid realtime đến sau khi subscribe)
+        List<BidDto> toAdd = new java.util.ArrayList<>();
+        for (BidDto b : history) {
+            if (b.getId() == null || !existingIds.contains(b.getId())) {
+                toAdd.add(b);
+            }
+        }
+
+        if (!toAdd.isEmpty()) {
+            bidData.addAll(toAdd);
+            // Sort: mới nhất lên đầu
+            bidData.sort((a, b) -> {
+                if (a.getBidTime() == null) return 1;
+                if (b.getBidTime() == null) return -1;
+                return b.getBidTime().compareTo(a.getBidTime());
+            });
+        }
+
+        updateChartFromHistory(new java.util.ArrayList<>(bidData));
+
+        if (!bidData.isEmpty() && bidData.get(0).getBidder() != null)
+            lblLeader.setText("Đang dẫn: " + bidData.get(0).getBidder().getUsername());
     }
 
     // ── Populate UI ───────────────────────────────────────────────────────────
@@ -206,25 +383,7 @@ public class AuctionDetailController implements AuctionObserver {
         tblBids.setItems(bidData);
     }
 
-    private void loadBidHistory() {
-        Thread t = new Thread(() -> {
-            try {
-                List<BidDto> bids = api.getBidHistory(currentAuction.getId());
-                Platform.runLater(() -> {
-                    bidData.setAll(bids);
-                    updateChartFromHistory(bids);
-                    if (!bids.isEmpty() && bids.get(0).getBidder() != null)
-                        lblLeader.setText("Đang dẫn: " + bids.get(0).getBidder().getUsername());
-                });
-            } catch (Exception e) {
-                Platform.runLater(() -> showBidMsg("Không tải được lịch sử: " + e.getMessage(), false));
-            }
-        });
-        t.setDaemon(true);
-        t.start();
-    }
-
-    @FXML public void refreshBidHistory() { loadBidHistory(); }
+    @FXML public void refreshBidHistory() { fetchFreshDataAndHistory(); }
 
     private void hideBidHistorySection() {
         tblBids.setVisible(false);
