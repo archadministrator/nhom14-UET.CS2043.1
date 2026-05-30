@@ -19,10 +19,10 @@ public class AuctionBackgroundWorker {
     private final BidService bidService;
 
     /**
-     * Mỗi 10 giây: tìm các phiên OPEN đã đến giờ bắt đầu → chuyển sang RUNNING
+     * Mỗi 3 giây: tìm các phiên OPEN đã đến giờ bắt đầu → chuyển sang RUNNING
      * và broadcast AUCTION_STARTED đến tất cả client.
      */
-    @Scheduled(fixedDelay = 10_000)
+    @Scheduled(fixedDelay = 3_000)
     public void activateAuctions() {
         List<AuctionItem> toActivate = auctionService.findItemsToActivate();
         if (toActivate.isEmpty()) return;
@@ -40,10 +40,10 @@ public class AuctionBackgroundWorker {
     }
 
     /**
-     * Mỗi 10 giây: tìm các phiên RUNNING đã hết giờ → đóng phiên,
+     * Mỗi 3 giây: tìm các phiên RUNNING đã hết giờ → đóng phiên,
      * xác định winner (nếu có bid), broadcast AUCTION_CLOSED đến tất cả client.
      */
-    @Scheduled(fixedDelay = 10_000)
+    @Scheduled(fixedDelay = 3_000)
     public void closeAuctions() {
         List<AuctionItem> toClose = auctionService.findItemsToClose();
         if (toClose.isEmpty()) return;
