@@ -154,38 +154,10 @@ Cửa sổ JavaFX sẽ mở ra. Mặc định client kết nối tới `http://l
 
 | Thành viên | Vai trò chính |
 |---|---|
-| Dương Huy | Frontend: LoginController.java
-AuctionListController.java
-AuctionDetailController.java
-SellerDashboardController.java
-AdminDashboardController.java
-AuctionEventBus.java
-AuctionObserver.java
-AuctionEvent.java *.fxml
-main.css FxUtil.java |
-| Đặng Gia Hưng | Backend & Test: BidService.java
-AutoBidService.java
-BidController.java
-AutoBidController.java
-WebSocketConfig.java
-BidRepository.java
-BidServiceTest.java
-AutoBidServiceTest.java
-AuctionServiceTest.java
-UserServiceTest.java |
-| Lê Công Nhật | Backend: SecurityConfig.java
-JwtAuthFilter.java
-UserService.java
-UserController.java
-AuthController.java
-AdminController.java
-ApiService.java
-SessionManager.java |
-| Nguyễn Văn Mạnh | Backend: AuctionService.java
-AuctionItem.java
-AuctionController.java
-AuctionBackgroundWorker.java
-schema.sql |
+| Dương Huy | Frontend: `LoginController.java`, `AuctionListController.java`, `AuctionDetailController.java`, `SellerDashboardController.java`, `AdminDashboardController.java`, `AuctionEventBus.java`, `AuctionObserver.java`, `AuctionEvent.java`, `*.fxml`, `main.css`, `FxUtil.java` |
+| Đặng Gia Hưng | Backend & Test: `BidService.java`, `AutoBidService.java`, `BidController.java`, `AutoBidController.java`, `WebSocketConfig.java`, `BidRepository.java`, `BidServiceTest.java`, `AutoBidServiceTest.java`, `AuctionServiceTest.java`, `UserServiceTest.java` |
+| Lê Công Nhật | Backend: `SecurityConfig.java`, `JwtAuthFilter.java`, `UserService.java`, `UserController.java`, `AuthController.java`, `AdminController.java`, `ApiService.java`, `SessionManager.java` |
+| Nguyễn Văn Mạnh | Backend: `AuctionService.java`, `AuctionItem.java`, `AuctionController.java`, `AuctionBackgroundWorker.java`, `schema.sql` |
 
 # Link báo cáo PDF và video demo
 
