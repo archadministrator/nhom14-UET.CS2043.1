@@ -158,3 +158,7 @@ Cửa sổ JavaFX sẽ mở ra. Mặc định client kết nối tới `http://l
 | Đặng Gia Hưng | Backend: AuctionService, Scheduler, REST API |
 | Lê Công Nhật | Backend: AuctionDetailController, realtime client |
 | Nguyễn Văn Mạnh | Backend: AuctionListController, WebSocketService, UI |
+
+# Link báo cáo PDF và video demo
+
+https://drive.google.com/drive/folders/1iy9qvs_ie9olkUQdgbe_zyQym1W93QLA?usp=drive_link
