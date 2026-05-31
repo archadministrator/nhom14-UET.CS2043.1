@@ -54,14 +54,23 @@ public class BidService {
         return doPlaceBid(auctionId, req.amount(), bidderUsername, false);
     }
 
+    // Thêm log để chứng minh reentrantlock hoạt động đúng
     @Transactional
     public Dto.BidResponse doPlaceBid(Long auctionId, BigDecimal amount,
                                       String bidderUsername, boolean isAuto) {
         ReentrantLock lock = getLockForAuction(auctionId);
+//
+        log.info("[auction={}] waiting lock | bidder={} | amount={}",
+            auctionId, bidderUsername, amount);
+
         lock.lock();
         try {
+            log.info("[auction={}] acquired lock | bidder={}",
+                auctionId, bidderUsername);
             return executeBid(auctionId, amount, bidderUsername, isAuto);
         } finally {
+            log.info("[auction={}] release lock | bidder={}",
+                auctionId, bidderUsername);
             lock.unlock();
         }
     }
@@ -106,7 +115,7 @@ public class BidService {
 
         topBidOpt.ifPresent(oldTop -> {
             userService.addBalance(oldTop.getBidder().getUsername(), oldTop.getAmount());
-            log.info("Hoàn tiền cho [{}]: {}₫",
+            log.info("Hoan tien cho [{}]: {}₫",
                     oldTop.getBidder().getUsername(), oldTop.getAmount());
         });
 
@@ -120,21 +129,21 @@ public class BidService {
         return Dto.BidResponse.from(savedBid);
     }
 
+    // Main logic của anti-sniping:
     private void applyAntiSnipingExtension(AuctionItem item, Long auctionId) {
         LocalDateTime now = LocalDateTime.now();
-        if (item.getEndTime().minusMinutes(5).isAfter(now)) return; // Chưa vào vùng nguy hiểm
+        if (item.getEndTime().minusMinutes(2).isAfter(now)) return; 
 
         if (item.getSnipExtensionCount() < 3) {
-            item.setEndTime(item.getEndTime().plusMinutes(5));
+            item.setEndTime(item.getEndTime().plusMinutes(2));
             item.setSnipExtensionCount(item.getSnipExtensionCount() + 1);
-            log.info("Auction [{}] anti-snip lần {} → endTime: {}",
+            log.info("Auction [{}] anti-snip lan thu {} → endTime: {}",
                     auctionId, item.getSnipExtensionCount(), item.getEndTime());
         } else {
-            // Đã gia hạn đủ 3 lần → hard close sau 30 giây kể từ bây giờ
             LocalDateTime hardClose = now.plusSeconds(30);
             if (item.getEndTime().isAfter(hardClose)) {
                 item.setEndTime(hardClose);
-                log.info("Auction [{}] anti-snip hết quota → hard close lúc: {}", auctionId, hardClose);
+                log.info("Auction [{}] anti-snip het quota → hard close luc: {}", auctionId, hardClose);
             }
         }
     }

@@ -113,6 +113,8 @@ public class AuctionListController {
         btnMenuMySales.setManaged(isSeller);
         btnNewAuction.setVisible(isSeller);
         btnNewAuction.setManaged(isSeller);
+        btnMenuMyBids.setVisible(!isSeller);
+        btnMenuMyBids.setManaged(!isSeller);
         btnTopUp.setVisible(session.isBidder());
         btnTopUp.setManaged(session.isBidder());
     }

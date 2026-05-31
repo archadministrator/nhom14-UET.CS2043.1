@@ -256,9 +256,9 @@ class BidServiceTest {
     class AntiSniping {
 
         @Test
-        @DisplayName("Bid trong 5 phút cuối → endTime gia hạn thêm 5 phút")
+        @DisplayName("Bid trong 2 phút cuối → endTime gia hạn thêm 2 phút")
         void placeBid_last5Minutes_extendsEndTime() {
-            LocalDateTime nearEnd = LocalDateTime.now().plusMinutes(3);
+            LocalDateTime nearEnd = LocalDateTime.now().plusMinutes(2);
             activeAuction.setEndTime(nearEnd);
 
             BigDecimal bidAmount = new BigDecimal("10500000");

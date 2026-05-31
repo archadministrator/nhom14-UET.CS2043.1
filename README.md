@@ -1,6 +1,6 @@
 # Hệ thống Đấu giá Trực tuyến
 
-Dự án môn **Lập trình nâng cao** — Nhóm 2, Trường Đại học Công nghệ (VNU-UET).
+Dự án môn **Lập trình nâng cao** — Nhóm 14, Trường Đại học Công nghệ (VNU-UET).
 
 Hệ thống cho phép nhiều người dùng cùng tham gia đấu giá sản phẩm theo thời gian thực, với các vai trò Bidder, Seller và Admin. Tham khảo mô hình eBay Auctions.
 
@@ -80,11 +80,11 @@ Sau khi build bằng `mvn package`:
 ```bash
 # Build server
 cd auction-system/server
-mvn clean package -DskipTests
+mvn clean package 
 
 # Build client
 cd ../client
-mvn clean package -DskipTests
+mvn clean package 
 ```
 
 ### Bước 2 — Chạy Server (chạy TRƯỚC)
@@ -126,7 +126,7 @@ Cửa sổ JavaFX sẽ mở ra. Mặc định client kết nối tới `http://l
 - [x] **Quản lý người dùng** — Đăng ký, đăng nhập JWT, 3 vai trò (Bidder / Seller / Admin), nạp tiền
 - [x] **Quản lý sản phẩm** — Seller: thêm / sửa / xóa phiên đấu giá với đầy đủ thông tin
 - [x] **Tham gia đấu giá** — Đặt giá, kiểm tra hợp lệ, cập nhật người dẫn đầu
-- [x] **Kết thúc phiên** — Tự động đóng phiên theo lịch (10s), xác định winner, vòng đời `OPEN → RUNNING → FINISHED → PAID / CANCELED`
+- [x] **Kết thúc phiên** — Tự động đóng phiên theo lịch (3s), xác định winner, vòng đời `OPEN → RUNNING → FINISHED → PAID / CANCELED`
 - [x] **Xử lý lỗi & ngoại lệ** — GlobalExceptionHandler, custom exceptions, xử lý lỗi kết nối
 - [x] **Giao diện JavaFX** — 5 màn hình: danh sách phiên, chi tiết, đặt giá realtime, quản lý seller, admin
 
@@ -154,7 +154,7 @@ Cửa sổ JavaFX sẽ mở ra. Mặc định client kết nối tới `http://l
 
 | Thành viên | Vai trò chính |
 |---|---|
-| Dương Huy | Backend: BidService, AutoBidService, concurrency |
+| Dương Huy | Frontend: toàn bộ các file fxml, controller; SessionManager và MainApp |
 | Đặng Gia Hưng | Backend: AuctionService, Scheduler, REST API |
-| Lê Công Nhật | Frontend: AuctionDetailController, realtime client |
-| Nguyễn Văn Mạnh | Frontend: AuctionListController, WebSocketService, UI |
+| Lê Công Nhật | Backend: AuctionDetailController, realtime client |
+| Nguyễn Văn Mạnh | Backend: AuctionListController, WebSocketService, UI |

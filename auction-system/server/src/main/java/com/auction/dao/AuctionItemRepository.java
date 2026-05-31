@@ -25,7 +25,7 @@ public interface AuctionItemRepository extends JpaRepository<AuctionItem, Long> 
     @Query("SELECT a FROM AuctionItem a WHERE a.status = 'RUNNING' AND a.endTime <= :now")
     List<AuctionItem> findItemsToClose(@Param("now") LocalDateTime now);
 
-    @Query("SELECT a FROM AuctionItem a WHERE a.status IN ('OPEN','RUNNING') AND LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    @Query("SELECT a FROM AuctionItem a WHERE LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(a.description) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<AuctionItem> searchByKeyword(@Param("keyword") String keyword);
 
     @Query("SELECT a FROM AuctionItem a WHERE a.status = 'RUNNING' AND a.endTime > :now ORDER BY a.endTime ASC")

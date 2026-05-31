@@ -453,6 +453,11 @@ public class AuctionDetailController implements AuctionObserver {
      *   3. Không duplicate unsubscribe trong handleBack()
      */
     private void handleNewBidEvent(AuctionEvent event) {
+        // Lưu endTime cũ TRƯỚC KHI cập nhật model — dùng để detect anti-sniping extension
+        // BUG CŨ: setEndTime() được gọi trước khi so sánh → currentAuction.endTime đã bằng
+        // event.endTime → điều kiện luôn false → countdown không bao giờ restart sau gia hạn
+        LocalDateTime previousEndTime = currentAuction.getEndTime();
+
         // Cập nhật model
         currentAuction.setCurrentPrice(event.getCurrentPrice());
         currentAuction.setTotalBids(event.getTotalBids());
@@ -465,12 +470,18 @@ public class AuctionDetailController implements AuctionObserver {
         if (event.getLeaderUsername() != null)
             lblLeader.setText("Đang dẫn: " + event.getLeaderUsername());
 
-        // Anti-sniping: endTime gia hạn → cập nhật label với highlight
+        // Anti-sniping: so sánh endTime MỚI với endTime CŨ (đã lưu trước khi set)
+        // Nếu server gia hạn thêm → endTime thay đổi → cập nhật label + restart countdown
         if (event.getEndTime() != null
-                && !event.getEndTime().equals(currentAuction.getEndTime())) {
+                && !event.getEndTime().equals(previousEndTime)) {
             lblEndTime.setText(event.getEndTime().format(DTF));
             lblEndTime.getStyleClass().removeAll("label", "label-danger");
             lblEndTime.getStyleClass().add("label-danger");
+
+            // Restart countdown với endTime mới — nếu không restart, countdown vẫn
+            // đếm về endTime cũ và hiển thị "Đã kết thúc" dù phiên đã được gia hạn
+            stopCountdown();
+            startCountdown();
         }
 
         // Thêm điểm mới lên biểu đồ realtime
